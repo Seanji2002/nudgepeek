@@ -1,7 +1,10 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 
 let historyWindow: BrowserWindow | null = null
+let appIsQuitting = false
+
+app.once('before-quit', () => { appIsQuitting = true })
 
 export function createHistoryWindow(): BrowserWindow {
   historyWindow = new BrowserWindow({
@@ -20,8 +23,10 @@ export function createHistoryWindow(): BrowserWindow {
     },
   })
 
-  // Hide instead of close so the renderer keeps its realtime subscription alive
+  // Hide instead of close so the renderer keeps its realtime subscription alive.
+  // Skip when the app is actually quitting so Quit NudgePeek works correctly.
   historyWindow.on('close', (e) => {
+    if (appIsQuitting) return
     e.preventDefault()
     historyWindow?.hide()
   })

@@ -1,8 +1,11 @@
-import { BrowserWindow, screen } from 'electron'
+import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { getPref, setPref } from '../store.js'
 
 let widgetWindow: BrowserWindow | null = null
+let appIsQuitting = false
+
+app.once('before-quit', () => { appIsQuitting = true })
 
 export function createWidgetWindow(): BrowserWindow {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
@@ -42,8 +45,10 @@ export function createWidgetWindow(): BrowserWindow {
     setPref('widgetY', wy)
   })
 
-  // Hide instead of close so the app keeps running
+  // Hide instead of close so the app keeps running.
+  // Skip when the app is actually quitting so Quit NudgePeek works correctly.
   widgetWindow.on('close', (e) => {
+    if (appIsQuitting) return
     e.preventDefault()
     widgetWindow?.hide()
     setPref('widgetVisible', false)
