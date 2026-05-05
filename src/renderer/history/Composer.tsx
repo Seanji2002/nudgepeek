@@ -1,6 +1,7 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { uploadPhoto, downscaleImage } from '../shared/api.js'
 import { useHistoryStore } from './store.js'
+import CameraCapture from './CameraCapture.js'
 import styles from './Composer.module.css'
 
 interface Props {
@@ -17,9 +18,19 @@ function SendIcon() {
   )
 }
 
+function CameraIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  )
+}
+
 export default function Composer({ userId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { isSending, setSending, sendError, setSendError } = useHistoryStore()
+  const [cameraOpen, setCameraOpen] = useState(false)
 
   function triggerPicker() {
     fileInputRef.current?.click()
@@ -28,7 +39,7 @@ export default function Composer({ userId }: Props) {
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    e.target.value = '' // reset so same file can be re-sent
+    e.target.value = ''
 
     setSendError(null)
     setSending(true)
@@ -54,19 +65,41 @@ export default function Composer({ userId }: Props) {
         aria-hidden
       />
 
-      <button
-        className={`${styles.sendBtn} ${isSending ? styles.sending : ''}`}
-        onClick={triggerPicker}
-        disabled={isSending}
-        title="Send a photo"
-      >
-        {isSending ? (
-          <span className={styles.btnSpinner} />
-        ) : (
-          <SendIcon />
-        )}
-        <span>{isSending ? 'Sending…' : 'Send Photo'}</span>
-      </button>
+      <div className={styles.btnRow}>
+        <button
+          className={styles.cameraBtn}
+          onClick={() => setCameraOpen(true)}
+          disabled={isSending}
+          title="Take a photo"
+        >
+          <CameraIcon />
+        </button>
+
+        <button
+          className={`${styles.sendBtn} ${isSending ? styles.sending : ''}`}
+          onClick={triggerPicker}
+          disabled={isSending}
+          title="Send a photo from file"
+        >
+          {isSending ? (
+            <span className={styles.btnSpinner} />
+          ) : (
+            <SendIcon />
+          )}
+          <span>{isSending ? 'Sending…' : 'Send Photo'}</span>
+        </button>
+      </div>
+
+      {cameraOpen && (
+        <CameraCapture
+          userId={userId}
+          onClose={() => setCameraOpen(false)}
+          onSendStart={() => { setSendError(null); setSending(true) }}
+          onSendEnd={() => setSending(false)}
+          onSendError={(msg) => setSendError(msg)}
+          onFallbackToFile={() => { setCameraOpen(false); fileInputRef.current?.click() }}
+        />
+      )}
 
       {sendError && (
         <div

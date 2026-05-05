@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { initPrefs, getPref } from './store.js'
 import { initSessionStorage, saveSession, loadSession, clearSession } from './session.js'
 import { createWidgetWindow, getWidgetWindow, showWidget, hideWidget, toggleWidget } from './windows/widget.js'
@@ -28,6 +28,10 @@ app.on('second-instance', () => {
 
 // ─── Boot ────────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(permission === 'media')
+  })
+
   initPrefs()
   initSessionStorage()
 
@@ -35,6 +39,11 @@ app.whenReady().then(() => {
 
   const historyWin = createHistoryWindow()
   const widgetWin = createWidgetWindow()
+
+  // Always show the history window on launch
+  historyWin.once('ready-to-show', () => {
+    showHistoryWindow()
+  })
 
   // Show widget on first ready-to-show if we have a prior session
   widgetWin.once('ready-to-show', () => {

@@ -4,6 +4,37 @@
   align-items: center;
 }
 
+.btnRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cameraBtn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.cameraBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.cameraBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .hiddenInput {
   position: absolute;
   width: 1px;
