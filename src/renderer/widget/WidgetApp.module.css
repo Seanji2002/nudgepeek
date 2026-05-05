@@ -1,0 +1,167 @@
+.container {
+  position: relative;
+  width: 300px;
+  height: 340px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0d0d16;
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.07);
+  -webkit-app-region: no-drag;
+  user-select: none;
+}
+
+/* Invisible drag strip at the top (excludes close-button area) */
+.dragBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 44px;
+  height: 38px;
+  z-index: 30;
+  -webkit-app-region: drag;
+  cursor: move;
+}
+
+/* ─── Photo layers ─────────────────────────────────────────────────────── */
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.photoIn {
+  animation: fadeIn 0.38s ease forwards;
+  z-index: 2;
+}
+
+.photoOut {
+  animation: fadeOut 0.38s ease forwards;
+  z-index: 3;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ─── Gradients ────────────────────────────────────────────────────────── */
+.topGradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+  border-radius: 14px 14px 0 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+/* ─── Bottom info overlay ──────────────────────────────────────────────── */
+.bottomOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 28px 14px 14px;
+  background: linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 100%);
+  border-radius: 0 0 14px 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  pointer-events: none;
+}
+
+.avatarCircle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c6af7, #5b4fd9);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.metaText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.senderName {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.sentTime {
+  color: rgba(255,255,255,0.55);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* ─── Close button ─────────────────────────────────────────────────────── */
+.closeBtn {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 40;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+  -webkit-app-region: no-drag;
+  padding: 0;
+}
+
+.closeBtn:hover {
+  background: rgba(255,255,255,0.18);
+  color: #ffffff;
+}
+
+/* ─── Empty state ──────────────────────────────────────────────────────── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding-top: 32px;
+  gap: 12px;
+}
+
+.emptyIcon {
+  color: rgba(255,255,255,0.18);
+  display: flex;
+}
+
+.emptyText {
+  color: rgba(255,255,255,0.25);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}

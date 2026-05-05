@@ -1,0 +1,31 @@
+{
+  "name": "nudgepeek",
+  "version": "0.1.0",
+  "description": "Intimate photo sharing for small, private groups",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "icons": "node scripts/create-placeholder-icons.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^4",
+    "electron": "^31",
+    "electron-builder": "^24",
+    "electron-vite": "^2",
+    "typescript": "^5",
+    "vite": "^5"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2",
+    "react": "^18",
+    "react-dom": "^18",
+    "zustand": "^4"
+  }
+}

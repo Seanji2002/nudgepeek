@@ -1,0 +1,75 @@
+import { Tray, Menu, nativeImage } from 'electron'
+import { join } from 'path'
+import { getAutoLaunchEnabled } from './autoLaunch.js'
+
+export interface TrayCallbacks {
+  onToggleWidget: () => void
+  onOpenHistory: () => void
+  onAutoLaunchChange: (enabled: boolean) => void
+  onSignOut: () => void
+}
+
+let tray: Tray | null = null
+let callbacks: TrayCallbacks | null = null
+let isLoggedIn = false
+
+export function createTray(cb: TrayCallbacks): Tray {
+  callbacks = cb
+
+  let icon = nativeImage.createEmpty()
+  try {
+    const iconPath = join(__dirname, '../../resources/trayTemplate.png')
+    icon = nativeImage.createFromPath(iconPath)
+    if (process.platform !== 'darwin') {
+      icon = icon.resize({ width: 16, height: 16 })
+    }
+  } catch {
+    // leave icon empty — app still works, just no tray icon image
+  }
+
+  tray = new Tray(icon)
+  tray.setToolTip('NudgePeek')
+
+  if (process.platform === 'darwin') {
+    tray.setIgnoreDoubleClickEvents(true)
+  } else {
+    // Windows / Linux: single click toggles widget
+    tray.on('click', () => callbacks?.onToggleWidget())
+  }
+
+  refreshMenu()
+  return tray
+}
+
+export function setTrayLoggedIn(state: boolean): void {
+  isLoggedIn = state
+  refreshMenu()
+}
+
+function refreshMenu(): void {
+  if (!tray || !callbacks) return
+  const cb = callbacks
+  const autoEnabled = getAutoLaunchEnabled()
+
+  const signOutItem: Electron.MenuItemConstructorOptions = {
+    label: 'Sign Out',
+    click: () => cb.onSignOut(),
+  }
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    { label: 'Show / Hide Widget', click: () => cb.onToggleWidget() },
+    { label: 'Open History',       click: () => cb.onOpenHistory() },
+    { type: 'separator' },
+    {
+      label: 'Launch at Login',
+      type: 'checkbox',
+      checked: autoEnabled,
+      click: (item) => cb.onAutoLaunchChange(item.checked),
+    },
+    { type: 'separator' },
+    ...(isLoggedIn ? [signOutItem] : []),
+    { label: 'Quit NudgePeek', role: 'quit' },
+  ]
+
+  tray.setContextMenu(Menu.buildFromTemplate(template))
+}

@@ -1,0 +1,15 @@
+interface DisplayPhotoPayload {
+  photoId: string
+  signedUrl: string
+  senderName: string
+  sentAt: string
+}
+
+interface NudgeWidgetApi {
+  onPhotoDisplay: (callback: (payload: DisplayPhotoPayload) => void) => () => void
+  hideWidget: () => void
+}
+
+interface Window {
+  nudgeWidget: NudgeWidgetApi
+}

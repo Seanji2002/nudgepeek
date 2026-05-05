@@ -1,0 +1,39 @@
+appId: com.nudgepeek.app
+productName: NudgePeek
+copyright: Personal Use
+
+directories:
+  buildResources: resources
+  output: out
+
+files:
+  - out/**
+  - package.json
+  - "!**/*.map"
+
+extraMetadata:
+  main: out/main/index.js
+
+mac:
+  icon: resources/icon.png
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.social-networking
+
+win:
+  icon: resources/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: true
+  perMachine: false
+
+linux:
+  icon: resources/icon.png
+  target: AppImage
