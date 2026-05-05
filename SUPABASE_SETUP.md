@@ -70,6 +70,11 @@ create policy "profiles: read by authenticated"
   on public.profiles for select
   using (auth.role() = 'authenticated');
 
+-- Users can upsert their own profile (the app does this automatically on first sign-in)
+create policy "profiles: insert own"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
 -- Users can only update their own profile
 create policy "profiles: update own"
   on public.profiles for update
@@ -126,7 +131,20 @@ create policy "storage photos: insert own folder"
 
 ---
 
-## 5. Enable Realtime on the photos table
+## 5. Backfill profiles for existing users (if needed)
+
+If you created users in the Supabase dashboard **before** running the schema above, they won't have a profile row yet (the trigger only fires on new inserts). The app will upsert a profile automatically on first sign-in, but you can also do it manually:
+
+```sql
+insert into public.profiles (id, display_name)
+select id, split_part(email, '@', 1)
+from auth.users
+where id not in (select id from public.profiles);
+```
+
+---
+
+## 6. Enable Realtime on the photos table
 
 Go to **Database → Replication** (or **Table Editor → photos → Edit**) and enable **Realtime** on the `photos` table for **INSERT** events.
 
@@ -138,7 +156,7 @@ alter publication supabase_realtime add table public.photos;
 
 ---
 
-## 6. Set display names for users (optional but recommended)
+## 7. Set display names for users (optional but recommended)
 
 In the SQL Editor, update each user's display name so it shows correctly in the app:
 

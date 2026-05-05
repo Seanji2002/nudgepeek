@@ -47,7 +47,9 @@ export default function Composer({ userId }: Props) {
       const blob = await downscaleImage(file, 1600, 0.85)
       await uploadPhoto(blob, userId)
     } catch (err: unknown) {
-      setSendError(err instanceof Error ? err.message : 'Could not send photo')
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[nudgepeek] send photo failed:', err)
+      setSendError(msg || 'Could not send photo')
     } finally {
       setSending(false)
     }

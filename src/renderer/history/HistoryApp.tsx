@@ -19,11 +19,17 @@ export default function HistoryApp() {
         refreshToken: session.refresh_token,
       })
 
+      // Upsert the profile so it always exists (handles first sign-in)
+      await supabase.from('profiles').upsert(
+        { id: session.user.id, display_name: session.user.email?.split('@')[0] ?? 'User' },
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('display_name')
         .eq('id', session.user.id)
-        .single()
+        .maybeSingle()
 
       const authUser: AuthUser = {
         id: session.user.id,

@@ -45,9 +45,14 @@ cp .env.example .env
 npm run dev
 ```
 
+> **Windows note:** If you see `Error: Electron failed to install correctly` on first run, the
+> Electron binary didn't download during `npm install` (a known intermittent issue). Fix it by
+> deleting `node_modules/electron` and re-running `npm install`, or by running
+> `node node_modules/electron/install.js` directly.
+
 The app opens with:
 - A system tray icon
-- The history window (hidden by default — right-click the tray icon → Open History)
+- The history window (shown automatically on launch; re-open via right-click tray → **Open History**)
 - The floating widget (hidden until you log in and receive a photo)
 
 ---
