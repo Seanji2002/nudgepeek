@@ -99,7 +99,9 @@ Go to **Storage** in the dashboard and create a new bucket named **`photos`**.
 - **Public**: OFF (private bucket, access via signed URLs)
 - Leave all other settings at defaults
 
-Then add these RLS policies to the storage bucket objects (Storage → Policies → photos bucket):
+Then add these RLS policies to the storage bucket objects.
+
+**Run this in the SQL Editor** (not the Storage → Policies UI — that dialog doesn't accept full `create policy` statements and will error on the trailing `;`):
 
 ```sql
 -- Any authenticated user can read objects in the photos bucket
@@ -119,6 +121,8 @@ create policy "storage photos: insert own folder"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 ```
+
+> If you'd rather use the **Storage → Policies → photos → New policy** UI, paste **only** the inner expression into the `USING` / `WITH CHECK` field (no `create policy`, no semicolon). E.g. for the read policy: `bucket_id = 'photos' and auth.role() = 'authenticated'`.
 
 ---
 
