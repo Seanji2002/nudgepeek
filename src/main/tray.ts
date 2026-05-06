@@ -58,7 +58,7 @@ function refreshMenu(): void {
 
   const template: Electron.MenuItemConstructorOptions[] = [
     { label: 'Show / Hide Widget', click: () => cb.onToggleWidget() },
-    { label: 'Open History',       click: () => cb.onOpenHistory() },
+    { label: 'Open History', click: () => cb.onOpenHistory() },
     { type: 'separator' },
     {
       label: 'Launch at Login',

@@ -5,7 +5,9 @@ import { getPref, setPref } from '../store.js'
 let widgetWindow: BrowserWindow | null = null
 let appIsQuitting = false
 
-app.once('before-quit', () => { appIsQuitting = true })
+app.once('before-quit', () => {
+  appIsQuitting = true
+})
 
 export function createWidgetWindow(): BrowserWindow {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize

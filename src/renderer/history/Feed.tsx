@@ -13,7 +13,16 @@ function formatRelativeTime(iso: string): string {
 
 function PhotoIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="36"
+      height="36"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <circle cx="8.5" cy="8.5" r="1.5" />
       <polyline points="21 15 16 10 5 21" />
@@ -57,9 +66,7 @@ export default function Feed() {
             />
           </div>
           <div className={styles.meta}>
-            <div className={styles.avatarSmall}>
-              {photo.senderName.charAt(0).toUpperCase()}
-            </div>
+            <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
             <span className={styles.sender}>{photo.senderName}</span>
             <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
           </div>

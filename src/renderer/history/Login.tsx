@@ -40,7 +40,9 @@ export default function Login({ onSuccess }: Props) {
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="np-email">Email</label>
+            <label className={styles.label} htmlFor="np-email">
+              Email
+            </label>
             <input
               id="np-email"
               className={styles.input}
@@ -56,7 +58,9 @@ export default function Login({ onSuccess }: Props) {
           </div>
 
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="np-password">Password</label>
+            <label className={styles.label} htmlFor="np-password">
+              Password
+            </label>
             <input
               id="np-password"
               className={styles.input}
@@ -70,14 +74,14 @@ export default function Login({ onSuccess }: Props) {
             />
           </div>
 
-          {error && <p className={styles.errorMsg} role="alert">{error}</p>}
+          {error && (
+            <p className={styles.errorMsg} role="alert">
+              {error}
+            </p>
+          )}
 
           <button className={styles.submitBtn} type="submit" disabled={loading}>
-            {loading ? (
-              <span className={styles.btnSpinner} />
-            ) : (
-              'Sign in'
-            )}
+            {loading ? <span className={styles.btnSpinner} /> : 'Sign in'}
           </button>
         </form>
       </div>

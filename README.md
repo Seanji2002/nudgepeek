@@ -70,14 +70,54 @@ npm run dist:win
 npm run dist:mac
 ```
 
-Output (the installer) is placed in `releases/` (configured in `electron-builder.yml`).
+Output (the installer) is placed in `release/` (configured in `electron-builder.yml`).
 
 > **Note on icons:** Before distributing, replace the placeholder files in `resources/` with production-quality icons:
 > - `resources/icon.png` — 512×512 or 1024×1024 app icon (used for macOS DMG and Linux)
 > - `resources/icon.ico` — Windows icon (ICO format with multiple sizes embedded)
 > - `resources/trayTemplate.png` + `trayTemplate@2x.png` — 16×16 and 32×32 macOS template images (white, transparent background)
+
+---
+
+## Releases
+
+Pre-built installers are published on the [GitHub Releases page](https://github.com/Seanji2002/nudgepeek/releases).
+
+- **macOS** — download the `.dmg` (universal: works on Intel and Apple Silicon)
+- **Windows** — download the `.exe` (NSIS installer, x64)
+- **Linux** — download the `.AppImage`, then `chmod +x NudgePeek-*.AppImage` and run it. On Ubuntu 22.04+ you may need `sudo apt install libfuse2` first.
+
+### macOS first-run
+
+Builds are unsigned, so macOS shows: *"NudgePeek can't be opened because Apple cannot check it for malicious software."*
+
+Workaround: right-click the app in Finder → **Open** → **Open**. You only need to do this once per install.
+
+### Windows first-run
+
+SmartScreen shows: *"Windows protected your PC."* Click **More info** → **Run anyway**. Once.
+
+### Auto-updates
+
+Once installed, NudgePeek checks GitHub Releases on each launch. When a newer version is published, it downloads in the background and installs the next time you quit the app.
+
+---
+
+## Cutting a release (maintainer only)
+
+```bash
+# from a clean working tree on main
+npm version patch              # bumps package.json + creates a v-prefixed tag
+git push && git push --tags
+```
+
+GitHub Actions runs the [release workflow](.github/workflows/release.yml) across macOS, Windows, and Linux runners and creates a **draft** GitHub release with all three installers attached. Review the draft, smoke-test an artifact, then click **Publish release** to make it visible — at which point installed clients will start auto-updating.
+
+> **First-time setup:** before the first release works end-to-end, set these as repository secrets in GitHub (Settings → Secrets and variables → Actions):
+> - `VITE_SUPABASE_URL`
+> - `VITE_SUPABASE_ANON_KEY`
 >
-> On macOS, Electron will show a Gatekeeper warning the first time unsigned apps run. Tell recipients: right-click → Open → Open to bypass it once.
+> Without these, CI will succeed but the released app will silently bundle a placeholder Supabase URL and auth/realtime won't work.
 
 ---
 

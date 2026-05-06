@@ -34,9 +34,7 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
 }
 
 export async function getSignedUrl(storagePath: string): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from('photos')
-    .createSignedUrl(storagePath, 3600)
+  const { data, error } = await supabase.storage.from('photos').createSignedUrl(storagePath, 3600)
   if (error) throw error
   return data.signedUrl
 }
@@ -60,11 +58,7 @@ export async function uploadPhoto(blob: Blob, senderId: string): Promise<void> {
   }
 }
 
-export async function downscaleImage(
-  file: File,
-  maxDim = 1600,
-  quality = 0.85,
-): Promise<Blob> {
+export async function downscaleImage(file: File, maxDim = 1600, quality = 0.85): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {

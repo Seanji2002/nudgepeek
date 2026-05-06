@@ -20,10 +20,12 @@ export default function HistoryApp() {
       })
 
       // Upsert the profile so it always exists (handles first sign-in)
-      await supabase.from('profiles').upsert(
-        { id: session.user.id, display_name: session.user.email?.split('@')[0] ?? 'User' },
-        { onConflict: 'id', ignoreDuplicates: true },
-      )
+      await supabase
+        .from('profiles')
+        .upsert(
+          { id: session.user.id, display_name: session.user.email?.split('@')[0] ?? 'User' },
+          { onConflict: 'id', ignoreDuplicates: true },
+        )
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -34,9 +36,10 @@ export default function HistoryApp() {
       const authUser: AuthUser = {
         id: session.user.id,
         email: session.user.email ?? '',
-        displayName: (profile as { display_name?: string } | null)?.display_name
-          ?? session.user.email
-          ?? 'Unknown',
+        displayName:
+          (profile as { display_name?: string } | null)?.display_name ??
+          session.user.email ??
+          'Unknown',
       }
       setUser(authUser)
 
@@ -56,7 +59,9 @@ export default function HistoryApp() {
 
     async function init() {
       // 1. Check if Supabase already has a session in localStorage
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
       if (session && !cancelled) {
         await applySession(session)
@@ -78,12 +83,16 @@ export default function HistoryApp() {
     }
 
     init()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [applySession])
 
   // ─── Sync token refreshes to main ────────────────────────────────────
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session) {
         window.nudgeHistory.updateSession({
           accessToken: session.access_token,
@@ -124,11 +133,7 @@ export default function HistoryApp() {
           }
 
           const [profileRes, signedUrl] = await Promise.all([
-            supabase
-              .from('profiles')
-              .select('display_name')
-              .eq('id', row.sender_id)
-              .single(),
+            supabase.from('profiles').select('display_name').eq('id', row.sender_id).single(),
             getSignedUrl(row.storage_path),
           ])
 

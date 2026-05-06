@@ -4,7 +4,9 @@ import { join } from 'path'
 let historyWindow: BrowserWindow | null = null
 let appIsQuitting = false
 
-app.once('before-quit', () => { appIsQuitting = true })
+app.once('before-quit', () => {
+  appIsQuitting = true
+})
 
 export function createHistoryWindow(): BrowserWindow {
   historyWindow = new BrowserWindow({

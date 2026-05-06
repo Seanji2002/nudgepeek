@@ -75,7 +75,9 @@
   color: #f0f0f5;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
   font-family: inherit;
 }
 
@@ -112,7 +114,9 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
   font-family: inherit;
   display: flex;
   align-items: center;
@@ -144,5 +148,7 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

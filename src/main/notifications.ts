@@ -1,9 +1,6 @@
 import { Notification } from 'electron'
 
-export function showPhotoNotification(
-  senderName: string,
-  onClickShowWidget: () => void,
-): void {
+export function showPhotoNotification(senderName: string, onClickShowWidget: () => void): void {
   if (!Notification.isSupported()) return
 
   const notif = new Notification({

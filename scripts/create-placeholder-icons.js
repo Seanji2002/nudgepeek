@@ -9,7 +9,7 @@ function crc32(buf) {
   const table = new Uint32Array(256)
   for (let i = 0; i < 256; i++) {
     let c = i
-    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+    for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
     table[i] = c
   }
   let crc = 0xffffffff
@@ -32,8 +32,8 @@ function makePNG(w, h, r, g, b, a = 255) {
   const ihdr = Buffer.alloc(13)
   ihdr.writeUInt32BE(w, 0)
   ihdr.writeUInt32BE(h, 4)
-  ihdr[8] = 8  // bit depth
-  ihdr[9] = 6  // RGBA
+  ihdr[8] = 8 // bit depth
+  ihdr[9] = 6 // RGBA
 
   const rowLen = w * 4 + 1
   const raw = Buffer.alloc(rowLen * h)
@@ -41,7 +41,10 @@ function makePNG(w, h, r, g, b, a = 255) {
     raw[y * rowLen] = 0 // filter type: None
     for (let x = 0; x < w; x++) {
       const i = y * rowLen + 1 + x * 4
-      raw[i] = r; raw[i + 1] = g; raw[i + 2] = b; raw[i + 3] = a
+      raw[i] = r
+      raw[i + 1] = g
+      raw[i + 2] = b
+      raw[i + 3] = a
     }
   }
 
@@ -63,4 +66,6 @@ fs.writeFileSync(path.join(dir, 'trayTemplate@2x.png'), makePNG(32, 32, 255, 255
 // 256x256 indigo app icon
 fs.writeFileSync(path.join(dir, 'icon.png'), makePNG(256, 256, 124, 106, 247))
 
-console.log('Placeholder icons written to resources/. Replace with production-quality icons before distributing.')
+console.log(
+  'Placeholder icons written to resources/. Replace with production-quality icons before distributing.',
+)
