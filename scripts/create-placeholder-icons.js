@@ -63,8 +63,8 @@ fs.mkdirSync(dir, { recursive: true })
 fs.writeFileSync(path.join(dir, 'trayTemplate.png'), makePNG(16, 16, 255, 255, 255, 220))
 fs.writeFileSync(path.join(dir, 'trayTemplate@2x.png'), makePNG(32, 32, 255, 255, 255, 220))
 
-// 256x256 indigo app icon
-fs.writeFileSync(path.join(dir, 'icon.png'), makePNG(256, 256, 124, 106, 247))
+// 1024x1024 indigo app icon (electron-builder requires >=512x512)
+fs.writeFileSync(path.join(dir, 'icon.png'), makePNG(1024, 1024, 124, 106, 247))
 
 console.log(
   'Placeholder icons written to resources/. Replace with production-quality icons before distributing.',
