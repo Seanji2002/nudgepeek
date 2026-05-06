@@ -8,14 +8,18 @@ export const missingEnv = !supabaseUrl || !supabaseAnonKey
 if (missingEnv) {
   console.error(
     '[nudgepeek] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.\n' +
-    'Copy .env.example to .env and fill in your Supabase project credentials, then restart the dev server.',
+      'Copy .env.example to .env and fill in your Supabase project credentials, then restart the dev server.',
   )
 }
 
-export const supabase = createClient(supabaseUrl ?? 'https://placeholder.supabase.co', supabaseAnonKey ?? 'placeholder', {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
+export const supabase = createClient(
+  supabaseUrl ?? 'https://placeholder.supabase.co',
+  supabaseAnonKey ?? 'placeholder',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
   },
-})
+)

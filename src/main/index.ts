@@ -1,7 +1,14 @@
 import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { initPrefs, getPref } from './store.js'
 import { initSessionStorage, saveSession, loadSession, clearSession } from './session.js'
-import { createWidgetWindow, getWidgetWindow, showWidget, hideWidget, toggleWidget } from './windows/widget.js'
+import {
+  createWidgetWindow,
+  getWidgetWindow,
+  showWidget,
+  hideWidget,
+  toggleWidget,
+} from './windows/widget.js'
 import { createHistoryWindow, getHistoryWindow, showHistoryWindow } from './windows/history.js'
 import { createTray, setTrayLoggedIn } from './tray.js'
 import { setAutoLaunch, getAutoLaunchEnabled } from './autoLaunch.js'
@@ -63,6 +70,19 @@ app.whenReady().then(() => {
       getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.AUTH_FORCE_SIGNOUT)
     },
   })
+
+  // ─── Auto-update (production builds only) ───────────────────────────────
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+    autoUpdater.on('error', (err) => console.error('[updater] error:', err))
+    autoUpdater.on('update-downloaded', () => {
+      console.log('[updater] update downloaded — will install on quit')
+    })
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error('[updater] checkForUpdatesAndNotify failed:', err)
+    })
+  }
 
   // ─── IPC: file dialog ───────────────────────────────────────────────────
   ipcMain.handle(IPC_INVOKE.DIALOG_OPEN_IMAGE, async (event) => {

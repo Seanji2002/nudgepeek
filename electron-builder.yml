@@ -4,15 +4,22 @@ copyright: Personal Use
 
 directories:
   buildResources: resources
-  output: out
+  output: release
 
 files:
   - out/**
   - package.json
-  - "!**/*.map"
+  - '!**/*.map'
 
 extraMetadata:
   main: out/main/index.js
+
+publish:
+  provider: github
+  owner: Seanji2002
+  repo: nudgepeek
+  releaseType: draft
+  vPrefixedTagName: true
 
 mac:
   icon: resources/icon.png

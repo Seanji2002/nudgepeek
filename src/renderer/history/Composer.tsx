@@ -10,7 +10,16 @@ interface Props {
 
 function SendIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M21 15V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7" />
       <circle cx="18" cy="18" r="3" />
       <path d="m16 18 1.5 1.5L20 17" />
@@ -20,7 +29,16 @@ function SendIcon() {
 
 function CameraIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
       <circle cx="12" cy="13" r="4" />
     </svg>
@@ -83,11 +101,7 @@ export default function Composer({ userId }: Props) {
           disabled={isSending}
           title="Send a photo from file"
         >
-          {isSending ? (
-            <span className={styles.btnSpinner} />
-          ) : (
-            <SendIcon />
-          )}
+          {isSending ? <span className={styles.btnSpinner} /> : <SendIcon />}
           <span>{isSending ? 'Sending…' : 'Send Photo'}</span>
         </button>
       </div>
@@ -96,19 +110,21 @@ export default function Composer({ userId }: Props) {
         <CameraCapture
           userId={userId}
           onClose={() => setCameraOpen(false)}
-          onSendStart={() => { setSendError(null); setSending(true) }}
+          onSendStart={() => {
+            setSendError(null)
+            setSending(true)
+          }}
           onSendEnd={() => setSending(false)}
           onSendError={(msg) => setSendError(msg)}
-          onFallbackToFile={() => { setCameraOpen(false); fileInputRef.current?.click() }}
+          onFallbackToFile={() => {
+            setCameraOpen(false)
+            fileInputRef.current?.click()
+          }}
         />
       )}
 
       {sendError && (
-        <div
-          className={styles.errorToast}
-          role="alert"
-          onClick={() => setSendError(null)}
-        >
+        <div className={styles.errorToast} role="alert" onClick={() => setSendError(null)}>
           {sendError}
         </div>
       )}

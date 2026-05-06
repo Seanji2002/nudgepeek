@@ -45,13 +45,21 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* ─── Gradients ────────────────────────────────────────────────────────── */
@@ -61,7 +69,7 @@
   left: 0;
   right: 0;
   height: 72px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
   border-radius: 14px 14px 0 0;
   z-index: 9;
   pointer-events: none;
@@ -75,7 +83,7 @@
   right: 0;
   z-index: 10;
   padding: 28px 14px 14px;
-  background: linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 100%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, transparent 100%);
   border-radius: 0 0 14px 14px;
   display: flex;
   align-items: center;
@@ -95,7 +103,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .metaText {
@@ -113,7 +121,7 @@
 }
 
 .sentTime {
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 11px;
   line-height: 1.2;
 }
@@ -127,20 +135,22 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(255,255,255,0.14);
-  color: rgba(255,255,255,0.75);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   -webkit-app-region: no-drag;
   padding: 0;
 }
 
 .closeBtn:hover {
-  background: rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
@@ -156,12 +166,12 @@
 }
 
 .emptyIcon {
-  color: rgba(255,255,255,0.18);
+  color: rgba(255, 255, 255, 0.18);
   display: flex;
 }
 
 .emptyText {
-  color: rgba(255,255,255,0.25);
+  color: rgba(255, 255, 255, 0.25);
   font-size: 12px;
   letter-spacing: 0.01em;
 }
