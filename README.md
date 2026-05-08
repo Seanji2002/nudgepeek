@@ -34,16 +34,15 @@ npm install
 # 2. Generate placeholder icons (already done if you cloned a full copy)
 npm run icons
 
-# 3. Create your .env file
-cp .env.example .env
-# Edit .env and fill in your Supabase URL and anon key
+# 3. Set up Supabase (one-time, see SUPABASE_SETUP.md)
 
-# 4. Set up Supabase (one-time)
-# Follow SUPABASE_SETUP.md
-
-# 5. Start the dev server
+# 4. Start the dev server
 npm run dev
 ```
+
+On first launch the app shows a **Connect your Supabase project** screen — paste your project URL and anon key from **Supabase → Settings → API**. They're saved encrypted in the OS keychain (`safeStorage`) so you only enter them once per machine.
+
+If you'd rather not see that screen during development, copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Env vars are used as a fallback when nothing is stored. Stored config (entered via the in-app form) always wins over `.env`.
 
 > **Windows note:** If you see `Error: Electron failed to install correctly` on first run, the
 > Electron binary didn't download during `npm install` (a known intermittent issue). Fix it by
@@ -113,34 +112,42 @@ git push && git push --tags
 
 GitHub Actions runs the [release workflow](.github/workflows/release.yml) across macOS, Windows, and Linux runners and creates a **draft** GitHub release with all three installers attached. Review the draft, smoke-test an artifact, then click **Publish release** to make it visible — at which point installed clients will start auto-updating.
 
-> **First-time setup:** before the first release works end-to-end, set these as repository secrets in GitHub (Settings → Secrets and variables → Actions):
+> **CI secrets are optional now.** The app prompts users to paste their own Supabase URL + anon key on first launch, so a released build doesn't need any creds baked in. If you *do* want a default to ship in the bundle (so users without a setup never see the form), set these as repository secrets in GitHub (Settings → Secrets and variables → Actions):
 > - `VITE_SUPABASE_URL`
 > - `VITE_SUPABASE_ANON_KEY`
 >
-> Without these, CI will succeed but the released app will silently bundle a placeholder Supabase URL and auth/realtime won't work.
+> When set, they're used as a fallback. The user can still override by clicking **Use a different project** on the login screen.
 
 ---
 
-## Baking credentials into the build
+## Configuring the Supabase project
 
-The `.env` file is **not** bundled automatically. You have two options:
+Each install picks up its Supabase credentials at runtime:
 
-**Option A — ship a `.env` file alongside the installer (simplest)**  
-Place a `.env` in the same directory as the installer and instruct users to put it next to the app. For most personal setups, this is fine.
+1. **In-app form (default).** First launch shows a **Connect your Supabase project** screen. The user pastes the project URL and anon key from **Supabase → Settings → API**. Values are stored encrypted in the OS keychain via Electron's `safeStorage`. To switch to a different project later, click **Use a different project** on the login screen.
+2. **`.env` fallback (optional).** If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are present at build time (or in dev), they're used when nothing has been stored. Anything entered via the in-app form takes priority.
 
-**Option B — embed at build time**  
-Create a `.env` with your credentials before running `npm run dist`. Vite will pick up the `VITE_*` variables and bake them into the renderer bundle. The values will be visible to anyone who inspects the JS, which is acceptable for a private personal app with a fixed group.
+This means a single signed installer can be shared across groups — each group runs their own Supabase project and pastes their own credentials on first launch.
 
 ---
 
-## User management
+## Setting up a group
 
-There is no in-app sign-up. Accounts are created manually in the Supabase dashboard:
+There is no in-app sign-up. One person hosts the Supabase project for the group; everyone else points their NudgePeek install at it.
 
-1. Go to **Authentication → Users → Add user**
-2. Enter email + password
-3. Update the display name in the `profiles` table (see `SUPABASE_SETUP.md`)
-4. Share the installer and credentials with that person directly
+**Host (one-time):**
+
+1. Create a Supabase project (free tier is fine).
+2. Run the schema in `SUPABASE_SETUP.md` (profiles, photos, comments, RLS, realtime, storage bucket).
+3. In **Authentication → Users → Add user**, create one account per group member.
+4. Update each member's display name in the `profiles` table.
+5. Share the **Project URL**, **anon key**, and each person's email + password with the group.
+
+**Each member:**
+
+1. Install NudgePeek.
+2. On first launch, paste the Project URL and anon key into the setup form.
+3. Sign in with their own email + password.
 
 ---
 
@@ -161,7 +168,8 @@ nudgepeek/
         widget.ts           — Frameless floating widget window
         history.ts          — History / main window
       ipc.ts                — IPC channel constants + TypeScript types
-      session.ts            — safeStorage-backed session persistence
+      session.ts            — safeStorage-backed auth session persistence
+      supabaseConfig.ts     — safeStorage-backed Supabase URL + anon key
       store.ts              — JSON prefs (widget position, etc.)
       notifications.ts      — OS notifications
       autoLaunch.ts         — Login item settings
@@ -170,11 +178,11 @@ nudgepeek/
       history.ts            — contextBridge API for history renderer
     renderer/
       shared/
-        supabase.ts         — Supabase client
-        api.ts              — uploadPhoto, listPhotos, downscaleImage
+        supabase.ts         — Lazily-initialized Supabase client
+        api.ts              — Photo + comment helpers (list/post/update/delete) + image downscale
         types.ts            — Shared TypeScript types
       widget/               — Floating widget React app
-      history/              — History window React app (login + feed + composer)
+      history/              — History window React app (setup + login + feed + composer + comments)
 ```
 
 ---
@@ -193,8 +201,8 @@ nudgepeek/
 
 ## Known limitations / out of scope
 
-- No photo deletion or editing
-- No reactions or comments
-- No public sign-up (by design — accounts are provisioned manually)
+- No photo deletion or editing (comments can be edited / deleted by their author)
+- No reactions
+- No public sign-up (by design — accounts are provisioned manually in Supabase)
 - No code signing (recipients may see a one-time OS security prompt)
 - Auto-launch on Windows only works when running the installed version, not from source
