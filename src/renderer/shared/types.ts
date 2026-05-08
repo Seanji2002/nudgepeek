@@ -28,3 +28,9 @@ export interface Comment {
 export interface CommentWithMeta extends Comment {
   authorName: string
 }
+
+export interface PendingProfile {
+  id: string
+  displayName: string
+  createdAt: string
+}

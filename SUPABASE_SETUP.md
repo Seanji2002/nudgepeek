@@ -278,4 +278,146 @@ select cron.unschedule('delete-old-photos');
 
 ---
 
+## 10. Self-signup with admin approval
+
+By default the app lets group members sign themselves up using just a **name + password** — no real email is needed. Each new account starts in a **pending** state and can't see photos until you (the admin) approve it.
+
+Internally, NudgePeek synthesises an email like `alice@nudgepeek.local` from the chosen name. Supabase Auth requires an email field but doesn't check that mail can actually be delivered there — so we just need to make sure email confirmation is **off**.
+
+### 10a. Add columns to `profiles`
+
+```sql
+alter table public.profiles
+  add column if not exists approved boolean not null default false,
+  add column if not exists is_admin boolean not null default false;
+
+-- Existing dashboard-created users are grandfathered in as approved,
+-- so they can keep signing in normally after this migration.
+update public.profiles set approved = true where approved is distinct from true;
+
+-- Bootstrap yourself as the first admin. Replace the UUID with your own
+-- (find it in Authentication → Users).
+-- update public.profiles set is_admin = true where id = '<host-user-uuid>';
+```
+
+### 10b. Helper function + admin policies
+
+```sql
+-- Security-definer helper so RLS policies can ask "is the caller an admin?"
+-- without recursing through profile RLS.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
+$$;
+
+-- Admins can update any profile (used to flip approved = true).
+-- Existing "profiles: update own" still applies — with multiple permissive
+-- policies, a row passes if ANY policy allows it.
+create policy "profiles: admin update"
+  on public.profiles for update
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- Reject = delete the auth user. Deleting from auth.users requires elevated
+-- privileges, so wrap it in a security-definer RPC that double-checks the
+-- caller is an admin. The existing FK on profiles.id cascades the profile
+-- row when the auth user is removed; photos and comments cascade likewise.
+create or replace function public.reject_user(target_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins can reject users';
+  end if;
+  -- Safety guard: don't let a misclick wipe an approved member.
+  -- Approved users should be removed via the Supabase dashboard.
+  if exists (select 1 from public.profiles where id = target_id and approved) then
+    raise exception 'Cannot reject an already-approved user. Use the Supabase dashboard.';
+  end if;
+  delete from auth.users where id = target_id;
+end;
+$$;
+
+grant execute on function public.reject_user(uuid) to authenticated;
+```
+
+### 10c. Gate reads & writes on `approved`
+
+Drop the existing "by authenticated" policies and recreate them with an extra `approved = true` check.
+
+```sql
+-- photos
+drop policy if exists "photos: read by authenticated" on public.photos;
+create policy "photos: read by approved"
+  on public.photos for select
+  using (
+    auth.role() = 'authenticated'
+    and exists (select 1 from public.profiles where id = auth.uid() and approved)
+  );
+
+drop policy if exists "photos: insert own" on public.photos;
+create policy "photos: insert own"
+  on public.photos for insert
+  with check (
+    auth.uid() = sender_id
+    and exists (select 1 from public.profiles where id = auth.uid() and approved)
+  );
+
+-- comments
+drop policy if exists "comments: read by authenticated" on public.comments;
+create policy "comments: read by approved"
+  on public.comments for select
+  using (
+    auth.role() = 'authenticated'
+    and exists (select 1 from public.profiles where id = auth.uid() and approved)
+  );
+
+drop policy if exists "comments: insert own" on public.comments;
+create policy "comments: insert own"
+  on public.comments for insert
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.profiles where id = auth.uid() and approved)
+  );
+
+-- storage objects
+drop policy if exists "storage photos: read by authenticated" on storage.objects;
+create policy "storage photos: read by approved"
+  on storage.objects for select
+  using (
+    bucket_id = 'photos'
+    and auth.role() = 'authenticated'
+    and exists (select 1 from public.profiles where id = auth.uid() and approved)
+  );
+
+drop policy if exists "storage photos: insert own folder" on storage.objects;
+create policy "storage photos: insert own folder"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'photos'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and exists (select 1 from public.profiles where id = auth.uid() and approved)
+  );
+```
+
+### 10d. Disable email confirmation
+
+In the Supabase dashboard:
+
+1. **Authentication → Sign In / Providers → Email** — make sure **Allow new users to sign up** is **on** (it's on by default).
+2. **Authentication → Sign In / Providers → Email** — set **Confirm email** to **off**. The app uses synthetic email addresses that can't receive mail, so confirmation links would dead-letter and new accounts would be stuck waiting for a confirmation that never arrives.
+
+Once everything above is done, anyone can hit **Sign up** in the NudgePeek login screen, pick a name + password, and end up on an "Awaiting approval" screen. As an admin, click the **Admin** button in the history-window header to approve or reject pending accounts.
+
+---
+
 Once these steps are complete, the host can share their **Project URL** + **anon key** with group members, who paste them into NudgePeek's first-launch setup screen. Alternatively, bake them in at build time via a `.env` file (see `README.md`).

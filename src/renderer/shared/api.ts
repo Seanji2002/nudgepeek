@@ -1,5 +1,7 @@
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase.js'
-import type { CommentWithMeta, PhotoWithMeta } from './types.js'
+import { identifierToEmail } from './identity.js'
+import type { CommentWithMeta, PendingProfile, PhotoWithMeta } from './types.js'
 
 export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
   const { data, error } = await supabase
@@ -155,4 +157,42 @@ export async function deleteComment(commentId: string): Promise<void> {
 export async function fetchAuthorName(userId: string): Promise<string> {
   const { data } = await supabase.from('profiles').select('display_name').eq('id', userId).single()
   return (data as { display_name?: string } | null)?.display_name ?? 'Unknown'
+}
+
+export async function signUpWithName(
+  name: string,
+  password: string,
+): Promise<{ session: Session | null }> {
+  const email = identifierToEmail(name)
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { display_name: name.trim() } },
+  })
+  if (error) throw error
+  return { session: data.session }
+}
+
+export async function listPendingProfiles(): Promise<PendingProfile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, created_at')
+    .eq('approved', false)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    displayName: row.display_name as string,
+    createdAt: row.created_at as string,
+  }))
+}
+
+export async function approveProfile(profileId: string): Promise<void> {
+  const { error } = await supabase.from('profiles').update({ approved: true }).eq('id', profileId)
+  if (error) throw error
+}
+
+export async function rejectProfile(profileId: string): Promise<void> {
+  const { error } = await supabase.rpc('reject_user', { target_id: profileId })
+  if (error) throw error
 }

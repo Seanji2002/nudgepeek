@@ -7,11 +7,14 @@ import { commentBus } from './commentBus.js'
 import Login from './Login.js'
 import Feed from './Feed.js'
 import Composer from './Composer.js'
+import PendingApproval from './PendingApproval.js'
+import AdminPanel from './AdminPanel.js'
 import styles from './styles.module.css'
 
 export default function HistoryApp() {
   const { user, setUser, setPhotos, prependPhoto, setLoading } = useHistoryStore()
   const [authChecked, setAuthChecked] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
 
   const applySession = useCallback(
     async (session: Session) => {
@@ -20,29 +23,41 @@ export default function HistoryApp() {
         refreshToken: session.refresh_token,
       })
 
-      // Upsert the profile so it always exists (handles first sign-in)
-      await supabase
-        .from('profiles')
-        .upsert(
-          { id: session.user.id, display_name: session.user.email?.split('@')[0] ?? 'User' },
-          { onConflict: 'id', ignoreDuplicates: true },
-        )
+      // Upsert the profile so it always exists (handles first sign-in).
+      // Prefer the display_name captured at signup over the synthetic
+      // email's local-part.
+      const metaName = (session.user.user_metadata as { display_name?: string } | null)
+        ?.display_name
+      await supabase.from('profiles').upsert(
+        {
+          id: session.user.id,
+          display_name: metaName ?? session.user.email?.split('@')[0] ?? 'User',
+        },
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('display_name, approved, is_admin')
         .eq('id', session.user.id)
         .maybeSingle()
+
+      const profileRow = profile as {
+        display_name?: string
+        approved?: boolean
+        is_admin?: boolean
+      } | null
 
       const authUser: AuthUser = {
         id: session.user.id,
         email: session.user.email ?? '',
-        displayName:
-          (profile as { display_name?: string } | null)?.display_name ??
-          session.user.email ??
-          'Unknown',
+        displayName: profileRow?.display_name ?? session.user.email ?? 'Unknown',
+        approved: profileRow?.approved ?? false,
+        isAdmin: profileRow?.is_admin ?? false,
       }
       setUser(authUser)
+
+      if (!authUser.approved) return
 
       setLoading(true)
       try {
@@ -53,6 +68,10 @@ export default function HistoryApp() {
     },
     [setUser, setPhotos, setLoading],
   )
+
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut()
+  }, [])
 
   // ─── Restore session on mount ─────────────────────────────────────────
   useEffect(() => {
@@ -256,6 +275,10 @@ export default function HistoryApp() {
     return <Login onSuccess={applySession} />
   }
 
+  if (!user.approved) {
+    return <PendingApproval onSignOut={handleSignOut} />
+  }
+
   return (
     <div className={styles.app}>
       <header className={styles.header}>
@@ -265,6 +288,16 @@ export default function HistoryApp() {
         </div>
         <div className={styles.headerActions}>
           <Composer userId={user.id} />
+          {user.isAdmin && (
+            <button
+              type="button"
+              className={styles.adminBtn}
+              onClick={() => setAdminOpen(true)}
+              title="Pending approvals"
+            >
+              Admin
+            </button>
+          )}
           <div className={styles.avatar} title={`${user.displayName} · ${user.email}`}>
             {user.displayName.charAt(0).toUpperCase()}
           </div>
@@ -273,6 +306,7 @@ export default function HistoryApp() {
       <main className={styles.main}>
         <Feed userId={user.id} />
       </main>
+      {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
     </div>
   )
 }
