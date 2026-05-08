@@ -151,42 +151,6 @@ There is no in-app sign-up. One person hosts the Supabase project for the group;
 
 ---
 
-## Project structure
-
-```
-nudgepeek/
-  electron.vite.config.ts   — Vite build config (main / preload / renderer)
-  electron-builder.yml      — Packaging config for Windows + macOS
-  resources/                — App icons (replace before distributing)
-  scripts/
-    create-placeholder-icons.js  — Generates dev placeholder PNGs
-  src/
-    main/                   — Electron main process
-      index.ts              — Entry point, IPC wiring, app lifecycle
-      tray.ts               — System tray
-      windows/
-        widget.ts           — Frameless floating widget window
-        history.ts          — History / main window
-      ipc.ts                — IPC channel constants + TypeScript types
-      session.ts            — safeStorage-backed auth session persistence
-      supabaseConfig.ts     — safeStorage-backed Supabase URL + anon key
-      store.ts              — JSON prefs (widget position, etc.)
-      notifications.ts      — OS notifications
-      autoLaunch.ts         — Login item settings
-    preload/
-      widget.ts             — contextBridge API for widget renderer
-      history.ts            — contextBridge API for history renderer
-    renderer/
-      shared/
-        supabase.ts         — Lazily-initialized Supabase client
-        api.ts              — Photo + comment helpers (list/post/update/delete) + image downscale
-        types.ts            — Shared TypeScript types
-      widget/               — Floating widget React app
-      history/              — History window React app (setup + login + feed + composer + comments)
-```
-
----
-
 ## Tech stack
 
 | Layer | Choice |
@@ -196,14 +160,3 @@ nudgepeek/
 | Build | electron-vite + electron-builder |
 | Backend | Supabase (Auth, Storage, Realtime, PostgreSQL) |
 | State | Zustand |
-
----
-
-## Known limitations / out of scope
-
-- No manual photo deletion or editing — photos (and their comments + storage files) are auto-deleted after 3 days by a `pg_cron` job; see `SUPABASE_SETUP.md`
-- Comments can be edited and deleted by their author
-- No reactions
-- No public sign-up (by design — accounts are provisioned manually in Supabase)
-- No code signing (recipients may see a one-time OS security prompt)
-- Auto-launch on Windows only works when running the installed version, not from source
