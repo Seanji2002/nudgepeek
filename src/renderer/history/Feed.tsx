@@ -1,6 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useHistoryStore } from './store.js'
+import type { PhotoWithMeta } from '../shared/types.js'
+import CommentModal from './CommentModal.js'
 import styles from './Feed.module.css'
+
+interface Props {
+  userId: string
+}
 
 function formatRelativeTime(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000
@@ -30,8 +36,26 @@ function PhotoIcon() {
   )
 }
 
-export default function Feed() {
+function CommentIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+export default function Feed({ userId }: Props) {
   const { photos, isLoading } = useHistoryStore()
+  const [openPhoto, setOpenPhoto] = useState<PhotoWithMeta | null>(null)
 
   if (isLoading) {
     return (
@@ -54,24 +78,54 @@ export default function Feed() {
   }
 
   return (
-    <div className={styles.feed}>
-      {photos.map((photo) => (
-        <article key={photo.id} className={styles.card}>
-          <div className={styles.imageWrap}>
-            <img
-              src={photo.signedUrl}
-              alt={`Photo from ${photo.senderName}`}
-              className={styles.image}
-              loading="lazy"
-            />
-          </div>
-          <div className={styles.meta}>
-            <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
-            <span className={styles.sender}>{photo.senderName}</span>
-            <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
-          </div>
-        </article>
-      ))}
-    </div>
+    <>
+      <div className={styles.feed}>
+        {photos.map((photo) => (
+          <article
+            key={photo.id}
+            className={styles.card}
+            onClick={() => setOpenPhoto(photo)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setOpenPhoto(photo)
+              }
+            }}
+          >
+            <div className={styles.imageWrap}>
+              <img
+                src={photo.signedUrl}
+                alt={`Photo from ${photo.senderName}`}
+                className={styles.image}
+                loading="lazy"
+              />
+            </div>
+            <div className={styles.meta}>
+              <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
+              <span className={styles.sender}>{photo.senderName}</span>
+              <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
+              <button
+                type="button"
+                className={styles.commentBtn}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpenPhoto(photo)
+                }}
+                title="View comments"
+              >
+                <CommentIcon />
+                <span>{photo.commentCount}</span>
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {openPhoto && (
+        <CommentModal photo={openPhoto} userId={userId} onClose={() => setOpenPhoto(null)} />
+      )}
+    </>
   )
 }

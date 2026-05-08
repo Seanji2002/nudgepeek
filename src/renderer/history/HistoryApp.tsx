@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../shared/supabase.js'
-import { listPhotos, getSignedUrl } from '../shared/api.js'
+import { fetchAuthorName, getSignedUrl, listPhotos } from '../shared/api.js'
 import { useHistoryStore, type AuthUser } from './store.js'
+import { commentBus } from './commentBus.js'
 import Login from './Login.js'
 import Feed from './Feed.js'
 import Composer from './Composer.js'
@@ -147,6 +148,7 @@ export default function HistoryApp() {
             createdAt: row.created_at,
             senderName,
             signedUrl,
+            commentCount: 0,
           })
 
           window.nudgeHistory.sendIncomingPhoto({
@@ -165,6 +167,86 @@ export default function HistoryApp() {
       supabase.removeChannel(channel)
     }
   }, [user?.id, prependPhoto])
+
+  // ─── Realtime: comments (count + open thread sync) ────────────────────
+  useEffect(() => {
+    if (!user) return
+
+    const adjustCommentCount = useHistoryStore.getState().adjustCommentCount
+
+    const channel = supabase
+      .channel('nudgepeek-comments')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments' },
+        async (payload) => {
+          const row = payload.new as {
+            id: string
+            photo_id: string
+            user_id: string
+            body: string
+            created_at: string
+            updated_at: string | null
+          }
+          adjustCommentCount(row.photo_id, +1)
+          const authorName = await fetchAuthorName(row.user_id)
+          commentBus.emit({
+            kind: 'insert',
+            comment: {
+              id: row.id,
+              photoId: row.photo_id,
+              userId: row.user_id,
+              body: row.body,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+              authorName,
+            },
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'comments' },
+        async (payload) => {
+          const row = payload.new as {
+            id: string
+            photo_id: string
+            user_id: string
+            body: string
+            created_at: string
+            updated_at: string | null
+          }
+          const authorName = await fetchAuthorName(row.user_id)
+          commentBus.emit({
+            kind: 'update',
+            comment: {
+              id: row.id,
+              photoId: row.photo_id,
+              userId: row.user_id,
+              body: row.body,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+              authorName,
+            },
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'comments' },
+        (payload) => {
+          const row = payload.old as { id: string; photo_id: string }
+          if (!row?.id || !row?.photo_id) return
+          adjustCommentCount(row.photo_id, -1)
+          commentBus.emit({ kind: 'delete', id: row.id, photoId: row.photo_id })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id])
 
   // ─── Render ───────────────────────────────────────────────────────────
   if (!authChecked) {
@@ -194,7 +276,7 @@ export default function HistoryApp() {
         </div>
       </header>
       <main className={styles.main}>
-        <Feed />
+        <Feed userId={user.id} />
       </main>
     </div>
   )

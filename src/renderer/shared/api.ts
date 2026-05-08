@@ -1,10 +1,12 @@
 import { supabase } from './supabase.js'
-import type { PhotoWithMeta } from './types.js'
+import type { CommentWithMeta, PhotoWithMeta } from './types.js'
 
 export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
   const { data, error } = await supabase
     .from('photos')
-    .select('id, sender_id, storage_path, created_at, profiles:sender_id(display_name)')
+    .select(
+      'id, sender_id, storage_path, created_at, profiles:sender_id(display_name), comments(count)',
+    )
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -18,6 +20,7 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
         .createSignedUrl(row.storage_path as string, 3600)
 
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+      const countRow = Array.isArray(row.comments) ? row.comments[0] : row.comments
 
       return {
         id: row.id as string,
@@ -26,6 +29,7 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
         createdAt: row.created_at as string,
         senderName: (profile as { display_name?: string } | null)?.display_name ?? 'Unknown',
         signedUrl: urlData?.signedUrl ?? '',
+        commentCount: (countRow as { count?: number } | null)?.count ?? 0,
       } satisfies PhotoWithMeta
     }),
   )
@@ -84,4 +88,75 @@ export async function downscaleImage(file: File, maxDim = 1600, quality = 0.85):
     img.onerror = () => reject(new Error('Failed to load image'))
     img.src = URL.createObjectURL(file)
   })
+}
+
+const COMMENT_SELECT =
+  'id, photo_id, user_id, body, created_at, updated_at, profiles:user_id(display_name)'
+
+interface CommentRow {
+  id: string
+  photo_id: string
+  user_id: string
+  body: string
+  created_at: string
+  updated_at: string | null
+  profiles: { display_name?: string } | { display_name?: string }[] | null
+}
+
+function rowToCommentWithMeta(row: CommentRow): CommentWithMeta {
+  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+  return {
+    id: row.id,
+    photoId: row.photo_id,
+    userId: row.user_id,
+    body: row.body,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    authorName: profile?.display_name ?? 'Unknown',
+  }
+}
+
+export async function listComments(photoId: string): Promise<CommentWithMeta[]> {
+  const { data, error } = await supabase
+    .from('comments')
+    .select(COMMENT_SELECT)
+    .eq('photo_id', photoId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map((row) => rowToCommentWithMeta(row as CommentRow))
+}
+
+export async function postComment(
+  photoId: string,
+  userId: string,
+  body: string,
+): Promise<CommentWithMeta> {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({ photo_id: photoId, user_id: userId, body: body.trim() })
+    .select(COMMENT_SELECT)
+    .single()
+  if (error) throw error
+  return rowToCommentWithMeta(data as CommentRow)
+}
+
+export async function updateComment(commentId: string, body: string): Promise<CommentWithMeta> {
+  const { data, error } = await supabase
+    .from('comments')
+    .update({ body: body.trim(), updated_at: new Date().toISOString() })
+    .eq('id', commentId)
+    .select(COMMENT_SELECT)
+    .single()
+  if (error) throw error
+  return rowToCommentWithMeta(data as CommentRow)
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  const { error } = await supabase.from('comments').delete().eq('id', commentId)
+  if (error) throw error
+}
+
+export async function fetchAuthorName(userId: string): Promise<string> {
+  const { data } = await supabase.from('profiles').select('display_name').eq('id', userId).single()
+  return (data as { display_name?: string } | null)?.display_name ?? 'Unknown'
 }

@@ -15,10 +15,16 @@
   overflow: hidden;
   transition: border-color 0.15s ease;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .card:hover {
   border-color: rgba(255, 255, 255, 0.11);
+}
+
+.card:focus-visible {
+  outline: none;
+  border-color: rgba(124, 106, 247, 0.5);
 }
 
 .imageWrap {
@@ -63,12 +69,43 @@
   font-size: 13px;
   font-weight: 600;
   color: #d8d8e8;
-  flex: 1;
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .time {
   font-size: 11px;
   color: #5e5e72;
+  flex-shrink: 0;
+}
+
+.commentBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.commentBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 /* ─── Empty / loading states ─────────────────────────────────────────────── */

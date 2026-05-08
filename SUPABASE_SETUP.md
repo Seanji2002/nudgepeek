@@ -156,7 +156,50 @@ alter publication supabase_realtime add table public.photos;
 
 ---
 
-## 7. Set display names for users (optional but recommended)
+## 7. Comments table
+
+Photos can be commented on by any signed-in user. Run this in the SQL Editor:
+
+```sql
+-- ── comments ────────────────────────────────────────────────────────────────
+create table public.comments (
+  id          uuid primary key default gen_random_uuid(),
+  photo_id    uuid not null references public.photos(id) on delete cascade,
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  body        text not null check (length(btrim(body)) > 0 and length(body) <= 1000),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz
+);
+
+create index comments_photo_id_created_at_idx
+  on public.comments (photo_id, created_at);
+
+alter table public.comments enable row level security;
+
+create policy "comments: read by authenticated"
+  on public.comments for select
+  using (auth.role() = 'authenticated');
+
+create policy "comments: insert own"
+  on public.comments for insert
+  with check (auth.uid() = user_id);
+
+create policy "comments: update own"
+  on public.comments for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "comments: delete own"
+  on public.comments for delete
+  using (auth.uid() = user_id);
+
+-- Realtime so the feed and open thread stay in sync across clients
+alter publication supabase_realtime add table public.comments;
+```
+
+---
+
+## 8. Set display names for users (optional but recommended)
 
 In the SQL Editor, update each user's display name so it shows correctly in the app:
 
