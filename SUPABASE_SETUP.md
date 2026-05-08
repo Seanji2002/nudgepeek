@@ -278,6 +278,4 @@ select cron.unschedule('delete-old-photos');
 
 ---
 
-## Done
-
 Once these steps are complete, the host can share their **Project URL** + **anon key** with group members, who paste them into NudgePeek's first-launch setup screen. Alternatively, bake them in at build time via a `.env` file (see `README.md`).
