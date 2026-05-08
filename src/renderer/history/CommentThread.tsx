@@ -85,7 +85,6 @@ export default function CommentThread({ photoId, userId }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     listComments(photoId)
       .then((rows) => {
         if (!cancelled) setComments(rows)
