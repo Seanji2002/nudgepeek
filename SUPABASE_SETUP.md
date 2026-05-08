@@ -1,41 +1,51 @@
 # Supabase Setup
 
-One-time setup for a NudgePeek backend. Do this before distributing the app to anyone.
+One-time setup for a NudgePeek backend. Do this before distributing the app to your group.
 
 ---
 
 ## 1. Create a Supabase project
 
-Go to [supabase.com](https://supabase.com), create a new project.  
-Copy your **Project URL** and **anon/public key** from **Settings → API** into a `.env` file:
+Go to [supabase.com](https://supabase.com) and create a new project (the free tier is fine).
 
-```
-VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5...
-```
+Copy your **Project URL** and **anon/public key** from **Settings → API** — you'll paste these into the app on first launch (or bake them into a `.env` file for development; see `CONTRIBUTING.md`).
 
 ---
 
-## 2. Create user accounts
+## 2. Configure Auth settings
 
-Go to **Authentication → Users** in the Supabase dashboard and click **Add user**.  
-Create one account per person (email + password). There is no in-app sign-up flow by design.
+In **Authentication → Sign In / Providers → Email**:
+
+- **Allow new users to sign up**: **on** (default).
+- **Confirm email**: **off**.
+
+NudgePeek lets group members sign up with just a name + password — internally it synthesises emails like `alice@nudgepeek.local` that can't receive mail, so confirmation links would dead-letter.
 
 ---
 
-## 3. Run the schema SQL
+## 3. Enable the `pg_cron` extension
 
-Open **SQL Editor** in the dashboard and run the following:
+The auto-cleanup job in step 5 uses Postgres cron. Enable the extension once: **Database → Extensions → `pg_cron` → Enable**.
+
+---
+
+## 4. Run the schema
+
+Open the **SQL Editor** and run the block below. It creates every table, function, RLS policy, realtime publication, and storage bucket the app needs.
 
 ```sql
 -- ── profiles ────────────────────────────────────────────────────────────────
 create table public.profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
   display_name  text not null default '',
+  approved      boolean not null default false,
+  is_admin      boolean not null default false,
   created_at    timestamptz not null default now()
 );
 
--- Auto-create a profile row whenever a new auth user is inserted
+-- Auto-create a profile row whenever a new auth user is inserted.
+-- New profiles default to approved=false, is_admin=false; an admin
+-- approves them via the in-app Admin panel.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -43,7 +53,10 @@ security definer set search_path = public
 as $$
 begin
   insert into public.profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1))
+  );
   return new;
 end;
 $$;
@@ -53,7 +66,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 
--- ── photos ───────────────────────────────────────────────────────────────────
+-- ── photos ──────────────────────────────────────────────────────────────────
 create table public.photos (
   id            uuid primary key default gen_random_uuid(),
   sender_id     uuid not null references public.profiles(id) on delete cascade,
@@ -62,105 +75,6 @@ create table public.photos (
 );
 
 
--- ── RLS: profiles ────────────────────────────────────────────────────────────
-alter table public.profiles enable row level security;
-
--- Any authenticated user can read all profiles (needed to resolve sender names)
-create policy "profiles: read by authenticated"
-  on public.profiles for select
-  using (auth.role() = 'authenticated');
-
--- Users can upsert their own profile (the app does this automatically on first sign-in)
-create policy "profiles: insert own"
-  on public.profiles for insert
-  with check (auth.uid() = id);
-
--- Users can only update their own profile
-create policy "profiles: update own"
-  on public.profiles for update
-  using (auth.uid() = id);
-
-
--- ── RLS: photos ──────────────────────────────────────────────────────────────
-alter table public.photos enable row level security;
-
--- Any authenticated user can read all photos
-create policy "photos: read by authenticated"
-  on public.photos for select
-  using (auth.role() = 'authenticated');
-
--- Users can only insert photos where they are the sender
-create policy "photos: insert own"
-  on public.photos for insert
-  with check (auth.uid() = sender_id);
-```
-
----
-
-## 4. Create the storage bucket
-
-Go to **Storage** in the dashboard and create a new bucket named **`photos`**.
-
-- **Public**: OFF (private bucket, access via signed URLs)
-- Leave all other settings at defaults
-
-Then add these RLS policies to the storage bucket objects.
-
-**Run this in the SQL Editor** (not the Storage → Policies UI — that dialog doesn't accept full `create policy` statements and will error on the trailing `;`):
-
-```sql
--- Any authenticated user can read objects in the photos bucket
-create policy "storage photos: read by authenticated"
-  on storage.objects for select
-  using (
-    bucket_id = 'photos'
-    and auth.role() = 'authenticated'
-  );
-
--- Users can only upload to their own folder (sender_id/filename.jpg)
-create policy "storage photos: insert own folder"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'photos'
-    and auth.role() = 'authenticated'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-```
-
-> If you'd rather use the **Storage → Policies → photos → New policy** UI, paste **only** the inner expression into the `USING` / `WITH CHECK` field (no `create policy`, no semicolon). E.g. for the read policy: `bucket_id = 'photos' and auth.role() = 'authenticated'`.
-
----
-
-## 5. Backfill profiles for existing users (if needed)
-
-If you created users in the Supabase dashboard **before** running the schema above, they won't have a profile row yet (the trigger only fires on new inserts). The app will upsert a profile automatically on first sign-in, but you can also do it manually:
-
-```sql
-insert into public.profiles (id, display_name)
-select id, split_part(email, '@', 1)
-from auth.users
-where id not in (select id from public.profiles);
-```
-
----
-
-## 6. Enable Realtime on the photos table
-
-Go to **Database → Replication** (or **Table Editor → photos → Edit**) and enable **Realtime** on the `photos` table for **INSERT** events.
-
-Or run in SQL Editor:
-
-```sql
-alter publication supabase_realtime add table public.photos;
-```
-
----
-
-## 7. Comments table
-
-Photos can be commented on by any signed-in user. Run this in the SQL Editor:
-
-```sql
 -- ── comments ────────────────────────────────────────────────────────────────
 create table public.comments (
   id          uuid primary key default gen_random_uuid(),
@@ -174,54 +88,45 @@ create table public.comments (
 create index comments_photo_id_created_at_idx
   on public.comments (photo_id, created_at);
 
-alter table public.comments enable row level security;
 
-create policy "comments: read by authenticated"
-  on public.comments for select
-  using (auth.role() = 'authenticated');
+-- ── helpers ─────────────────────────────────────────────────────────────────
+-- Security-definer helper so RLS policies can ask "is the caller an admin?"
+-- without recursing through profile RLS.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
+$$;
 
-create policy "comments: insert own"
-  on public.comments for insert
-  with check (auth.uid() = user_id);
+-- Reject = delete the auth user. Cascades through FKs to drop the profile
+-- (and any photos / comments). Refuses on already-approved users so a
+-- misclick can't wipe a real member; remove approved members via the
+-- Supabase dashboard instead.
+create or replace function public.reject_user(target_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins can reject users';
+  end if;
+  if exists (select 1 from public.profiles where id = target_id and approved) then
+    raise exception 'Cannot reject an already-approved user. Use the Supabase dashboard.';
+  end if;
+  delete from auth.users where id = target_id;
+end;
+$$;
 
-create policy "comments: update own"
-  on public.comments for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+grant execute on function public.reject_user(uuid) to authenticated;
 
-create policy "comments: delete own"
-  on public.comments for delete
-  using (auth.uid() = user_id);
-
--- Realtime so the feed and open thread stay in sync across clients
-alter publication supabase_realtime add table public.comments;
-```
-
----
-
-## 8. Set display names for users (optional but recommended)
-
-In the SQL Editor, update each user's display name so it shows correctly in the app:
-
-```sql
-update public.profiles
-set display_name = 'Alice'
-where id = 'paste-user-uuid-here';
-```
-
-You can find user UUIDs in **Authentication → Users**.
-
----
-
-## 9. Auto-delete photos older than 3 days
-
-Photos (and their comments + storage files) are pruned daily by a Postgres cron job. Comments cascade through the FK; storage objects are removed via `storage.objects`, which Supabase's storage backend treats as the source of truth — deleting a row here removes the underlying file.
-
-First, enable the `pg_cron` extension once via the dashboard: **Database → Extensions → pg_cron → Enable**. Then run this in the SQL Editor:
-
-```sql
--- Cleanup routine. Runs as the function owner (security definer) so it can
--- bypass RLS to delete other users' photos.
+-- Daily cleanup: drop photos (and their files + cascading comments) older
+-- than 3 days. Runs as the function owner so it can bypass RLS.
 create or replace function public.delete_old_photos()
 returns void
 language plpgsql
@@ -239,123 +144,44 @@ begin
     return;
   end if;
 
-  -- Remove the storage objects (file + metadata).
   delete from storage.objects
-  where bucket_id = 'photos'
-    and name = any(old_paths);
+  where bucket_id = 'photos' and name = any(old_paths);
 
-  -- Remove the photo rows; comments cascade via FK.
   delete from public.photos
   where created_at < now() - interval '3 days';
 end;
 $$;
 
--- Schedule daily at 03:15 UTC
-select cron.schedule(
-  'delete-old-photos',
-  '15 3 * * *',
-  $$ select public.delete_old_photos(); $$
-);
-```
 
-Useful operations:
+-- ── RLS: profiles ───────────────────────────────────────────────────────────
+alter table public.profiles enable row level security;
 
-```sql
--- Run the cleanup right now (great for verifying it works):
-select public.delete_old_photos();
+-- Any authenticated user can read all profiles (used to resolve display names).
+create policy "profiles: read by authenticated"
+  on public.profiles for select
+  using (auth.role() = 'authenticated');
 
--- See scheduled jobs and their last runs:
-select * from cron.job;
-select * from cron.job_run_details order by start_time desc limit 10;
+-- Users upsert their own profile on first sign-in.
+create policy "profiles: insert own"
+  on public.profiles for insert
+  with check (auth.uid() = id);
 
--- Stop the schedule:
-select cron.unschedule('delete-old-photos');
+-- Users update their own profile (e.g. display_name).
+create policy "profiles: update own"
+  on public.profiles for update
+  using (auth.uid() = id);
 
--- Change the retention window: drop and recreate the function with a
--- different `interval` literal (e.g. `interval '7 days'`), then re-run
--- the cron.schedule line — pg_cron will replace the existing job.
-```
-
----
-
-## 10. Self-signup with admin approval
-
-By default the app lets group members sign themselves up using just a **name + password** — no real email is needed. Each new account starts in a **pending** state and can't see photos until you (the admin) approve it.
-
-Internally, NudgePeek synthesises an email like `alice@nudgepeek.local` from the chosen name. Supabase Auth requires an email field but doesn't check that mail can actually be delivered there — so we just need to make sure email confirmation is **off**.
-
-### 10a. Add columns to `profiles`
-
-```sql
-alter table public.profiles
-  add column if not exists approved boolean not null default false,
-  add column if not exists is_admin boolean not null default false;
-
--- Existing dashboard-created users are grandfathered in as approved,
--- so they can keep signing in normally after this migration.
-update public.profiles set approved = true where approved is distinct from true;
-
--- Bootstrap yourself as the first admin. Replace the UUID with your own
--- (find it in Authentication → Users).
--- update public.profiles set is_admin = true where id = '<host-user-uuid>';
-```
-
-### 10b. Helper function + admin policies
-
-```sql
--- Security-definer helper so RLS policies can ask "is the caller an admin?"
--- without recursing through profile RLS.
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
-$$;
-
--- Admins can update any profile (used to flip approved = true).
--- Existing "profiles: update own" still applies — with multiple permissive
--- policies, a row passes if ANY policy allows it.
+-- Admins update any profile — used to flip approved = true.
 create policy "profiles: admin update"
   on public.profiles for update
   using (public.is_admin())
   with check (public.is_admin());
 
--- Reject = delete the auth user. Deleting from auth.users requires elevated
--- privileges, so wrap it in a security-definer RPC that double-checks the
--- caller is an admin. The existing FK on profiles.id cascades the profile
--- row when the auth user is removed; photos and comments cascade likewise.
-create or replace function public.reject_user(target_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-begin
-  if not public.is_admin() then
-    raise exception 'Only admins can reject users';
-  end if;
-  -- Safety guard: don't let a misclick wipe an approved member.
-  -- Approved users should be removed via the Supabase dashboard.
-  if exists (select 1 from public.profiles where id = target_id and approved) then
-    raise exception 'Cannot reject an already-approved user. Use the Supabase dashboard.';
-  end if;
-  delete from auth.users where id = target_id;
-end;
-$$;
 
-grant execute on function public.reject_user(uuid) to authenticated;
-```
+-- ── RLS: photos ─────────────────────────────────────────────────────────────
+alter table public.photos enable row level security;
 
-### 10c. Gate reads & writes on `approved`
-
-Drop the existing "by authenticated" policies and recreate them with an extra `approved = true` check.
-
-```sql
--- photos
-drop policy if exists "photos: read by authenticated" on public.photos;
+-- Any approved user can read all photos.
 create policy "photos: read by approved"
   on public.photos for select
   using (
@@ -363,7 +189,7 @@ create policy "photos: read by approved"
     and exists (select 1 from public.profiles where id = auth.uid() and approved)
   );
 
-drop policy if exists "photos: insert own" on public.photos;
+-- Approved users can insert photos where they are the sender.
 create policy "photos: insert own"
   on public.photos for insert
   with check (
@@ -371,8 +197,10 @@ create policy "photos: insert own"
     and exists (select 1 from public.profiles where id = auth.uid() and approved)
   );
 
--- comments
-drop policy if exists "comments: read by authenticated" on public.comments;
+
+-- ── RLS: comments ───────────────────────────────────────────────────────────
+alter table public.comments enable row level security;
+
 create policy "comments: read by approved"
   on public.comments for select
   using (
@@ -380,7 +208,6 @@ create policy "comments: read by approved"
     and exists (select 1 from public.profiles where id = auth.uid() and approved)
   );
 
-drop policy if exists "comments: insert own" on public.comments;
 create policy "comments: insert own"
   on public.comments for insert
   with check (
@@ -388,8 +215,26 @@ create policy "comments: insert own"
     and exists (select 1 from public.profiles where id = auth.uid() and approved)
   );
 
--- storage objects
-drop policy if exists "storage photos: read by authenticated" on storage.objects;
+create policy "comments: update own"
+  on public.comments for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "comments: delete own"
+  on public.comments for delete
+  using (auth.uid() = user_id);
+
+
+-- ── Realtime ────────────────────────────────────────────────────────────────
+alter publication supabase_realtime add table public.photos;
+alter publication supabase_realtime add table public.comments;
+
+
+-- ── Storage bucket ──────────────────────────────────────────────────────────
+insert into storage.buckets (id, name, public)
+values ('photos', 'photos', false)
+on conflict (id) do nothing;
+
 create policy "storage photos: read by approved"
   on storage.objects for select
   using (
@@ -398,7 +243,7 @@ create policy "storage photos: read by approved"
     and exists (select 1 from public.profiles where id = auth.uid() and approved)
   );
 
-drop policy if exists "storage photos: insert own folder" on storage.objects;
+-- Users upload only into their own folder (sender_id/filename.jpg).
 create policy "storage photos: insert own folder"
   on storage.objects for insert
   with check (
@@ -407,17 +252,72 @@ create policy "storage photos: insert own folder"
     and (storage.foldername(name))[1] = auth.uid()::text
     and exists (select 1 from public.profiles where id = auth.uid() and approved)
   );
+
+
+-- ── Cron: daily cleanup at 03:15 UTC ────────────────────────────────────────
+select cron.schedule(
+  'delete-old-photos',
+  '15 3 * * *',
+  $$ select public.delete_old_photos(); $$
+);
 ```
 
-### 10d. Disable email confirmation
-
-In the Supabase dashboard:
-
-1. **Authentication → Sign In / Providers → Email** — make sure **Allow new users to sign up** is **on** (it's on by default).
-2. **Authentication → Sign In / Providers → Email** — set **Confirm email** to **off**. The app uses synthetic email addresses that can't receive mail, so confirmation links would dead-letter and new accounts would be stuck waiting for a confirmation that never arrives.
-
-Once everything above is done, anyone can hit **Sign up** in the NudgePeek login screen, pick a name + password, and end up on an "Awaiting approval" screen. As an admin, click the **Admin** button in the history-window header to approve or reject pending accounts.
+That single block is the entire backend. No follow-up migrations needed.
 
 ---
 
-Once these steps are complete, the host can share their **Project URL** + **anon key** with group members, who paste them into NudgePeek's first-launch setup screen. Alternatively, bake them in at build time via a `.env` file (see `README.md`).
+## 5. Bootstrap your host account
+
+NudgePeek's signup flow puts new accounts in a **pending** state. You need at least one approved admin before anyone else can be approved — that's you.
+
+1. **Authentication → Users → Add user** in the dashboard. Pick any email + password (a real one is fine; you'll keep using it). Click **Create user**.
+2. The trigger from step 4 auto-created a profile row for you. Find your UUID with:
+
+   ```sql
+   select id, email from auth.users;
+   ```
+
+3. Approve yourself and grant admin in one go:
+
+   ```sql
+   update public.profiles
+   set approved = true, is_admin = true, display_name = 'Your Name'
+   where id = '<your-user-uuid>';
+   ```
+
+You can now sign in to NudgePeek with your email + password. The **Admin** button in the header opens the pending-approvals modal, where you'll approve or reject everyone else.
+
+---
+
+## 6. Useful operations
+
+```sql
+-- Run the auto-cleanup right now (handy for verifying it works):
+select public.delete_old_photos();
+
+-- See scheduled cron jobs and their last runs:
+select * from cron.job;
+select * from cron.job_run_details order by start_time desc limit 10;
+
+-- Stop the cleanup schedule:
+select cron.unschedule('delete-old-photos');
+
+-- Change the retention window: drop and recreate delete_old_photos() with
+-- a different `interval` literal (e.g. `interval '7 days'`), then re-run
+-- the cron.schedule call — pg_cron replaces the existing job.
+
+-- Rename a member (e.g. dashboard-created users default to the email
+-- local-part; self-signup users keep the name they typed):
+update public.profiles set display_name = 'Alice' where id = '<uuid>';
+
+-- See pending signups:
+select id, display_name, created_at from public.profiles where not approved;
+
+-- Permanently remove an approved member (rejects can be done in-app, but
+-- already-approved members must be deleted from the dashboard or here):
+delete from auth.users where id = '<uuid>';
+```
+
+---
+
+Once these steps are complete, share your **Project URL** + **anon key** with group members. They paste them into NudgePeek's first-launch setup screen, sign up with a name + password, and wait for you to approve them.
