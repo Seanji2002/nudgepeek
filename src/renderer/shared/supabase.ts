@@ -1,25 +1,35 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+let client: SupabaseClient | null = null
+let currentUrl: string | null = null
 
-export const missingEnv = !supabaseUrl || !supabaseAnonKey
-
-if (missingEnv) {
-  console.error(
-    '[nudgepeek] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.\n' +
-      'Copy .env.example to .env and fill in your Supabase project credentials, then restart the dev server.',
-  )
-}
-
-export const supabase = createClient(
-  supabaseUrl ?? 'https://placeholder.supabase.co',
-  supabaseAnonKey ?? 'placeholder',
-  {
+export function initSupabase(url: string, anonKey: string): void {
+  currentUrl = url
+  client = createClient(url, anonKey, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
     },
+  })
+}
+
+export function isSupabaseInitialized(): boolean {
+  return client !== null
+}
+
+export function getCurrentSupabaseUrl(): string | null {
+  return currentUrl
+}
+
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    if (!client) {
+      throw new Error('Supabase client used before initialization')
+    }
+    return Reflect.get(client, prop, receiver)
   },
-)
+})
+
+export const envSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+export const envSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined

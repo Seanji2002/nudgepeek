@@ -12,6 +12,11 @@ interface IncomingPhotoPayload {
   fromCurrentUser: boolean
 }
 
+interface StoredSupabaseConfig {
+  url: string
+  anonKey: string
+}
+
 interface NudgeHistoryApi {
   getStoredSession: () => Promise<StoredSession | null>
   updateSession: (session: StoredSession | null) => void
@@ -20,6 +25,9 @@ interface NudgeHistoryApi {
   onForceSignout: (callback: () => void) => () => void
   getAutoLaunchStatus: () => Promise<{ enabled: boolean }>
   setAutoLaunch: (enabled: boolean) => void
+  getStoredSupabaseConfig: () => Promise<StoredSupabaseConfig | null>
+  setStoredSupabaseConfig: (config: StoredSupabaseConfig) => Promise<true>
+  clearStoredSupabaseConfig: () => Promise<true>
 }
 
 interface Window {

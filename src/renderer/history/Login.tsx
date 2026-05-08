@@ -1,10 +1,31 @@
 import React, { FormEvent, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../shared/supabase.js'
+import { getCurrentSupabaseUrl, supabase } from '../shared/supabase.js'
 import styles from './Login.module.css'
 
 interface Props {
   onSuccess: (session: Session) => Promise<void>
+}
+
+function projectHostname(): string | null {
+  const url = getCurrentSupabaseUrl()
+  if (!url) return null
+  try {
+    return new URL(url).hostname
+  } catch {
+    return null
+  }
+}
+
+async function switchProject() {
+  try {
+    await window.nudgeHistory.clearStoredSupabaseConfig()
+  } catch (err) {
+    console.error('[login] Failed to clear stored Supabase config:', err)
+    return
+  }
+  sessionStorage.setItem('np-force-setup', '1')
+  location.reload()
 }
 
 export default function Login({ onSuccess }: Props) {
@@ -12,6 +33,7 @@ export default function Login({ onSuccess }: Props) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const host = projectHostname()
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -84,6 +106,17 @@ export default function Login({ onSuccess }: Props) {
             {loading ? <span className={styles.btnSpinner} /> : 'Sign in'}
           </button>
         </form>
+
+        <div className={styles.footer}>
+          {host && (
+            <span className={styles.footerHost} title={getCurrentSupabaseUrl() ?? ''}>
+              Connected to {host}
+            </span>
+          )}
+          <button type="button" className={styles.footerLink} onClick={switchProject}>
+            Use a different project
+          </button>
+        </div>
       </div>
     </div>
   )

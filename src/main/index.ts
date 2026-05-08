@@ -3,6 +3,12 @@ import { autoUpdater } from 'electron-updater'
 import { initPrefs, getPref } from './store.js'
 import { initSessionStorage, saveSession, loadSession, clearSession } from './session.js'
 import {
+  initSupabaseConfigStorage,
+  saveSupabaseConfig,
+  loadSupabaseConfig,
+  clearSupabaseConfig,
+} from './supabaseConfig.js'
+import {
   createWidgetWindow,
   getWidgetWindow,
   showWidget,
@@ -18,6 +24,7 @@ import {
   IPC_INVOKE,
   IPC_TO_RENDERER,
   type StoredSession,
+  type StoredSupabaseConfig,
   type IncomingPhotoPayload,
   type DisplayPhotoPayload,
 } from './ipc.js'
@@ -41,6 +48,7 @@ app.whenReady().then(() => {
 
   initPrefs()
   initSessionStorage()
+  initSupabaseConfigStorage()
 
   const storedSession = loadSession()
 
@@ -144,6 +152,27 @@ app.whenReady().then(() => {
 
   ipcMain.on(IPC_FROM_RENDERER.AUTOLAUNCH_SET, (_e, enabled: boolean) => {
     setAutoLaunch(enabled)
+  })
+
+  // ─── IPC: Supabase project config (BYO Supabase) ───────────────────────
+  ipcMain.handle(IPC_INVOKE.SUPABASE_CONFIG_GET, (): StoredSupabaseConfig | null => {
+    return loadSupabaseConfig()
+  })
+
+  ipcMain.handle(IPC_INVOKE.SUPABASE_CONFIG_SET, (_e, config: StoredSupabaseConfig) => {
+    if (!config?.url || !config?.anonKey) {
+      throw new Error('Both url and anonKey are required')
+    }
+    saveSupabaseConfig({ url: config.url, anonKey: config.anonKey })
+    return true
+  })
+
+  ipcMain.handle(IPC_INVOKE.SUPABASE_CONFIG_CLEAR, () => {
+    clearSupabaseConfig()
+    clearSession()
+    setTrayLoggedIn(false)
+    hideWidget()
+    return true
   })
 })
 

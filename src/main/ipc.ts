@@ -5,6 +5,9 @@ export const IPC_INVOKE = {
   DIALOG_OPEN_IMAGE: 'dialog:open-image',
   AUTH_GET_STORED_SESSION: 'auth:get-stored-session',
   AUTOLAUNCH_GET_STATUS: 'autolaunch:get-status',
+  SUPABASE_CONFIG_GET: 'supabase:config-get',
+  SUPABASE_CONFIG_SET: 'supabase:config-set',
+  SUPABASE_CONFIG_CLEAR: 'supabase:config-clear',
 } as const
 
 export const IPC_FROM_RENDERER = {
@@ -22,6 +25,11 @@ export const IPC_TO_RENDERER = {
 export interface StoredSession {
   accessToken: string
   refreshToken: string
+}
+
+export interface StoredSupabaseConfig {
+  url: string
+  anonKey: string
 }
 
 export interface IncomingPhotoPayload {

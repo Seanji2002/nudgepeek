@@ -5,11 +5,12 @@
   height: 100%;
   background: #0f0f14;
   padding: 24px;
+  overflow-y: auto;
 }
 
 .card {
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -32,17 +33,20 @@
 }
 
 .title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #f0f0f5;
   letter-spacing: -0.02em;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .subtitle {
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: #8a8a9e;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
 .form {
@@ -73,12 +77,20 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: #f0f0f5;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
   transition:
     border-color 0.15s ease,
     background 0.15s ease;
   font-family: inherit;
+}
+
+.textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 60px;
 }
 
 .input::placeholder {
@@ -93,6 +105,18 @@
 .input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.hint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #6e6e82;
+  margin: -2px 0 2px 0;
+}
+
+.hint strong {
+  color: #d8d8e8;
+  font-weight: 600;
 }
 
 .errorMsg {
@@ -145,43 +169,6 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   animation: spin 0.7s linear infinite;
-}
-
-.footer {
-  margin-top: 22px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-}
-
-.footerHost {
-  font-size: 11px;
-  color: #5e5e72;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.footerLink {
-  background: transparent;
-  border: none;
-  padding: 2px 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #8a8a9e;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color 0.15s ease;
-}
-
-.footerLink:hover {
-  color: #a99cff;
 }
 
 @keyframes spin {

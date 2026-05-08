@@ -8,6 +8,9 @@ const CHANNELS = {
   PHOTO_INCOMING: 'photo:incoming',
   AUTOLAUNCH_GET: 'autolaunch:get-status',
   AUTOLAUNCH_SET: 'autolaunch:set',
+  SUPABASE_CONFIG_GET: 'supabase:config-get',
+  SUPABASE_CONFIG_SET: 'supabase:config-set',
+  SUPABASE_CONFIG_CLEAR: 'supabase:config-clear',
 } as const
 
 contextBridge.exposeInMainWorld('nudgeHistory', {
@@ -28,4 +31,11 @@ contextBridge.exposeInMainWorld('nudgeHistory', {
   getAutoLaunchStatus: () => ipcRenderer.invoke(CHANNELS.AUTOLAUNCH_GET),
 
   setAutoLaunch: (enabled: boolean) => ipcRenderer.send(CHANNELS.AUTOLAUNCH_SET, enabled),
+
+  getStoredSupabaseConfig: () => ipcRenderer.invoke(CHANNELS.SUPABASE_CONFIG_GET),
+
+  setStoredSupabaseConfig: (config: { url: string; anonKey: string }) =>
+    ipcRenderer.invoke(CHANNELS.SUPABASE_CONFIG_SET, config),
+
+  clearStoredSupabaseConfig: () => ipcRenderer.invoke(CHANNELS.SUPABASE_CONFIG_CLEAR),
 })
