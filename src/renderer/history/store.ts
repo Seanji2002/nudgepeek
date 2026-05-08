@@ -20,7 +20,6 @@ interface HistoryState {
   setLoading: (v: boolean) => void
   setSending: (v: boolean) => void
   setSendError: (msg: string | null) => void
-  adjustCommentCount: (photoId: string, delta: number) => void
 }
 
 export const useHistoryStore = create<HistoryState>((set) => ({
@@ -36,10 +35,4 @@ export const useHistoryStore = create<HistoryState>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setSending: (isSending) => set({ isSending }),
   setSendError: (sendError) => set({ sendError }),
-  adjustCommentCount: (photoId, delta) =>
-    set((s) => ({
-      photos: s.photos.map((p) =>
-        p.id === photoId ? { ...p, commentCount: Math.max(0, p.commentCount + delta) } : p,
-      ),
-    })),
 }))

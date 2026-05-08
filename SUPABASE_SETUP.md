@@ -213,6 +213,71 @@ You can find user UUIDs in **Authentication → Users**.
 
 ---
 
+## 9. Auto-delete photos older than 3 days
+
+Photos (and their comments + storage files) are pruned daily by a Postgres cron job. Comments cascade through the FK; storage objects are removed via `storage.objects`, which Supabase's storage backend treats as the source of truth — deleting a row here removes the underlying file.
+
+First, enable the `pg_cron` extension once via the dashboard: **Database → Extensions → pg_cron → Enable**. Then run this in the SQL Editor:
+
+```sql
+-- Cleanup routine. Runs as the function owner (security definer) so it can
+-- bypass RLS to delete other users' photos.
+create or replace function public.delete_old_photos()
+returns void
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  old_paths text[];
+begin
+  select array_agg(storage_path) into old_paths
+  from public.photos
+  where created_at < now() - interval '3 days';
+
+  if old_paths is null or array_length(old_paths, 1) = 0 then
+    return;
+  end if;
+
+  -- Remove the storage objects (file + metadata).
+  delete from storage.objects
+  where bucket_id = 'photos'
+    and name = any(old_paths);
+
+  -- Remove the photo rows; comments cascade via FK.
+  delete from public.photos
+  where created_at < now() - interval '3 days';
+end;
+$$;
+
+-- Schedule daily at 03:15 UTC
+select cron.schedule(
+  'delete-old-photos',
+  '15 3 * * *',
+  $$ select public.delete_old_photos(); $$
+);
+```
+
+Useful operations:
+
+```sql
+-- Run the cleanup right now (great for verifying it works):
+select public.delete_old_photos();
+
+-- See scheduled jobs and their last runs:
+select * from cron.job;
+select * from cron.job_run_details order by start_time desc limit 10;
+
+-- Stop the schedule:
+select cron.unschedule('delete-old-photos');
+
+-- Change the retention window: drop and recreate the function with a
+-- different `interval` literal (e.g. `interval '7 days'`), then re-run
+-- the cron.schedule line — pg_cron will replace the existing job.
+```
+
+---
+
 ## Done
 
-Once these steps are complete, distribute the built app with a `.env` file containing the project credentials, or bake the env vars into the build (see `README.md`).
+Once these steps are complete, the host can share their **Project URL** + **anon key** with group members, who paste them into NudgePeek's first-launch setup screen. Alternatively, bake them in at build time via a `.env` file (see `README.md`).

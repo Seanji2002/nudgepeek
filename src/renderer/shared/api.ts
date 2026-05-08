@@ -4,9 +4,7 @@ import type { CommentWithMeta, PhotoWithMeta } from './types.js'
 export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
   const { data, error } = await supabase
     .from('photos')
-    .select(
-      'id, sender_id, storage_path, created_at, profiles:sender_id(display_name), comments(count)',
-    )
+    .select('id, sender_id, storage_path, created_at, profiles:sender_id(display_name)')
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -20,7 +18,6 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
         .createSignedUrl(row.storage_path as string, 3600)
 
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
-      const countRow = Array.isArray(row.comments) ? row.comments[0] : row.comments
 
       return {
         id: row.id as string,
@@ -29,7 +26,6 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
         createdAt: row.created_at as string,
         senderName: (profile as { display_name?: string } | null)?.display_name ?? 'Unknown',
         signedUrl: urlData?.signedUrl ?? '',
-        commentCount: (countRow as { count?: number } | null)?.count ?? 0,
       } satisfies PhotoWithMeta
     }),
   )

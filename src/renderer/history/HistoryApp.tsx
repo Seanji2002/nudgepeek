@@ -148,7 +148,6 @@ export default function HistoryApp() {
             createdAt: row.created_at,
             senderName,
             signedUrl,
-            commentCount: 0,
           })
 
           window.nudgeHistory.sendIncomingPhoto({
@@ -168,11 +167,9 @@ export default function HistoryApp() {
     }
   }, [user?.id, prependPhoto])
 
-  // ─── Realtime: comments (count + open thread sync) ────────────────────
+  // ─── Realtime: comments (open threads stay in sync) ───────────────────
   useEffect(() => {
     if (!user) return
-
-    const adjustCommentCount = useHistoryStore.getState().adjustCommentCount
 
     const channel = supabase
       .channel('nudgepeek-comments')
@@ -188,7 +185,6 @@ export default function HistoryApp() {
             created_at: string
             updated_at: string | null
           }
-          adjustCommentCount(row.photo_id, +1)
           const authorName = await fetchAuthorName(row.user_id)
           commentBus.emit({
             kind: 'insert',
@@ -237,7 +233,6 @@ export default function HistoryApp() {
         (payload) => {
           const row = payload.old as { id: string; photo_id: string }
           if (!row?.id || !row?.photo_id) return
-          adjustCommentCount(row.photo_id, -1)
           commentBus.emit({ kind: 'delete', id: row.id, photoId: row.photo_id })
         },
       )

@@ -14,7 +14,6 @@ export interface Photo {
 export interface PhotoWithMeta extends Photo {
   senderName: string
   signedUrl: string
-  commentCount: number
 }
 
 export interface Comment {

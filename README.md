@@ -201,7 +201,8 @@ nudgepeek/
 
 ## Known limitations / out of scope
 
-- No photo deletion or editing (comments can be edited / deleted by their author)
+- No manual photo deletion or editing — photos (and their comments + storage files) are auto-deleted after 3 days by a `pg_cron` job; see `SUPABASE_SETUP.md`
+- Comments can be edited and deleted by their author
 - No reactions
 - No public sign-up (by design — accounts are provisioned manually in Supabase)
 - No code signing (recipients may see a one-time OS security prompt)
