@@ -44,7 +44,7 @@ Once installed, NudgePeek checks GitHub Releases on each launch. When a newer ve
 
 1. NudgePeek shows a **Connect your Supabase project** screen.
 2. Paste the **Project URL** and **anon key** that the host of your group sent you.
-3. Sign in with the email and password the host created for you.
+3. On the next screen, **Sign up** with a name and password — no email needed. Then wait for the host to approve your account; once approved, sign in with the same name and password.
 
 Credentials are stored encrypted in the OS keychain, so you only enter them once per machine. To switch to a different project later, click **Use a different project** on the login screen.
 
@@ -54,21 +54,20 @@ Photos and comments older than **3 days** are deleted automatically.
 
 ## Setting up a group
 
-There is no in-app sign-up. One person — the **host** — runs a free Supabase project for the group; everyone else points NudgePeek at it.
+One person — the **host** — runs a free Supabase project for the group. Everyone else points NudgePeek at it and signs up from inside the app.
 
 **Host (one-time):**
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
-2. Follow [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) to create the schema, RLS policies, storage bucket, and the daily auto-cleanup job.
-3. In **Authentication → Users → Add user**, create one account per group member.
-4. Set each member's display name in the `profiles` table.
-5. Share the **Project URL**, **anon key**, and each member's email + password with the group.
+2. Follow [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) to create the schema, RLS policies, storage bucket, daily auto-cleanup job, and bootstrap your own admin account.
+3. Share the **Project URL** and **anon key** with the group.
 
 **Each member:**
 
 1. Install NudgePeek.
 2. Paste the Project URL and anon key on first launch.
-3. Sign in with their own email + password.
+3. Click **Sign up** and pick a name + password.
+4. The host approves them from the in-app **Admin** button. After that, they sign in normally.
 
 ---
 
