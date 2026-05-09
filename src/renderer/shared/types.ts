@@ -8,6 +8,7 @@ export interface Photo {
   id: string
   senderId: string
   storagePath: string
+  hidden: boolean
   createdAt: string
 }
 

@@ -127,13 +127,14 @@ app.whenReady().then(() => {
       signedUrl: payload.signedUrl,
       senderName: payload.senderName,
       sentAt: payload.sentAt,
+      hidden: payload.hidden,
     }
     getWidgetWindow()?.webContents.send(IPC_TO_RENDERER.PHOTO_DISPLAY, displayPayload)
 
     if (!getWidgetWindow()?.isVisible()) showWidget()
 
     if (!payload.fromCurrentUser) {
-      showPhotoNotification(payload.senderName, () => {
+      showPhotoNotification(payload.senderName, payload.hidden, () => {
         showWidget()
         getWidgetWindow()?.focus()
       })

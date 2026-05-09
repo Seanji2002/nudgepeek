@@ -6,7 +6,7 @@ import type { CommentWithMeta, PendingProfile, PhotoWithMeta } from './types.js'
 export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
   const { data, error } = await supabase
     .from('photos')
-    .select('id, sender_id, storage_path, created_at, profiles:sender_id(display_name)')
+    .select('id, sender_id, storage_path, hidden, created_at, profiles:sender_id(display_name)')
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -25,6 +25,7 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
         id: row.id as string,
         senderId: row.sender_id as string,
         storagePath: row.storage_path as string,
+        hidden: (row.hidden as boolean | null) ?? false,
         createdAt: row.created_at as string,
         senderName: (profile as { display_name?: string } | null)?.display_name ?? 'Unknown',
         signedUrl: urlData?.signedUrl ?? '',
@@ -41,7 +42,7 @@ export async function getSignedUrl(storagePath: string): Promise<string> {
   return data.signedUrl
 }
 
-export async function uploadPhoto(blob: Blob, senderId: string): Promise<void> {
+export async function uploadPhoto(blob: Blob, senderId: string, hidden = false): Promise<void> {
   const filename = `${senderId}/${crypto.randomUUID()}.jpg`
 
   const { error: uploadError } = await supabase.storage
@@ -52,7 +53,7 @@ export async function uploadPhoto(blob: Blob, senderId: string): Promise<void> {
 
   const { error: insertError } = await supabase
     .from('photos')
-    .insert({ sender_id: senderId, storage_path: filename })
+    .insert({ sender_id: senderId, storage_path: filename, hidden })
 
   if (insertError) {
     await supabase.storage.from('photos').remove([filename])

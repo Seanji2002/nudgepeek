@@ -44,6 +44,11 @@
   z-index: 3;
 }
 
+.photoHidden {
+  filter: blur(36px) saturate(0.6);
+  transform: scale(1.08);
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -124,6 +129,38 @@
   color: rgba(255, 255, 255, 0.55);
   font-size: 11px;
   line-height: 1.2;
+}
+
+/* ─── Hidden-photo reveal layer ────────────────────────────────────────── */
+.revealLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(13, 13, 22, 0.4);
+  border: none;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-family: inherit;
+  padding: 16px;
+  -webkit-app-region: no-drag;
+  transition: background 0.15s ease;
+  border-radius: 14px;
+}
+
+.revealLayer:hover {
+  background: rgba(13, 13, 22, 0.55);
+}
+
+.revealLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* ─── Close button ─────────────────────────────────────────────────────── */

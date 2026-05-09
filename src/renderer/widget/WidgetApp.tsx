@@ -28,15 +28,38 @@ function CameraIcon() {
   )
 }
 
+function isFrameHidden(frame: { photoId: string; hidden: boolean }, revealedId: string | null) {
+  return frame.hidden && frame.photoId !== revealedId
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 export default function WidgetApp() {
-  const { currentPhoto, prevPhoto, showPrev, setPhoto, clearPrev } = useWidgetStore()
+  const { currentPhoto, prevPhoto, showPrev, revealedId, setPhoto, clearPrev, revealCurrent } =
+    useWidgetStore()
   const prevTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const api = window.nudgeWidget
     if (!api) return
     const remove = api.onPhotoDisplay((payload) => {
-      setPhoto(payload)
+      setPhoto(payload as Parameters<typeof setPhoto>[0])
       if (prevTimerRef.current) clearTimeout(prevTimerRef.current)
       prevTimerRef.current = setTimeout(() => clearPrev(), 450)
     })
@@ -47,6 +70,9 @@ export default function WidgetApp() {
   }, [setPhoto, clearPrev])
 
   const handleClose = () => window.nudgeWidget?.hideWidget()
+
+  const currentHidden = currentPhoto ? isFrameHidden(currentPhoto, revealedId) : false
+  const prevHidden = prevPhoto ? isFrameHidden(prevPhoto, revealedId) : false
 
   return (
     <div className={styles.container}>
@@ -59,7 +85,7 @@ export default function WidgetApp() {
           {prevPhoto && showPrev && (
             <img
               key={`prev-${prevPhoto.photoId}`}
-              className={`${styles.photo} ${styles.photoOut}`}
+              className={`${styles.photo} ${styles.photoOut} ${prevHidden ? styles.photoHidden : ''}`}
               src={prevPhoto.signedUrl}
               alt=""
               draggable={false}
@@ -69,11 +95,24 @@ export default function WidgetApp() {
           {/* Current photo fades in */}
           <img
             key={`cur-${currentPhoto.photoId}`}
-            className={`${styles.photo} ${styles.photoIn}`}
+            className={`${styles.photo} ${styles.photoIn} ${currentHidden ? styles.photoHidden : ''}`}
             src={currentPhoto.signedUrl}
             alt={`Photo from ${currentPhoto.senderName}`}
             draggable={false}
           />
+
+          {/* Reveal layer — covers the photo area, sits below close button */}
+          {currentHidden && (
+            <button
+              type="button"
+              className={styles.revealLayer}
+              onClick={revealCurrent}
+              aria-label="Reveal hidden photo"
+            >
+              <EyeIcon />
+              <span className={styles.revealLabel}>Hidden — click to reveal</span>
+            </button>
+          )}
 
           {/* Top gradient so close button is always visible */}
           <div className={styles.topGradient} />

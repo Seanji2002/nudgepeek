@@ -3,6 +3,7 @@ interface DisplayPhotoPayload {
   signedUrl: string
   senderName: string
   sentAt: string
+  hidden: boolean
 }
 
 interface NudgeWidgetApi {

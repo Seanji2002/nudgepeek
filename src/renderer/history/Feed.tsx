@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useHistoryStore } from './store.js'
 import CommentThread from './CommentThread.js'
 import styles from './Feed.module.css'
@@ -35,8 +35,36 @@ function PhotoIcon() {
   )
 }
 
+function EyeIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 export default function Feed({ userId }: Props) {
   const { photos, isLoading } = useHistoryStore()
+  const [revealed, setRevealed] = useState<Set<string>>(new Set())
+
+  function reveal(id: string) {
+    setRevealed((prev) => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }
 
   if (isLoading) {
     return (
@@ -60,24 +88,38 @@ export default function Feed({ userId }: Props) {
 
   return (
     <div className={styles.feed}>
-      {photos.map((photo) => (
-        <article key={photo.id} className={styles.card}>
-          <div className={styles.imageWrap}>
-            <img
-              src={photo.signedUrl}
-              alt={`Photo from ${photo.senderName}`}
-              className={styles.image}
-              loading="lazy"
-            />
-          </div>
-          <div className={styles.meta}>
-            <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
-            <span className={styles.sender}>{photo.senderName}</span>
-            <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
-          </div>
-          <CommentThread photoId={photo.id} userId={userId} />
-        </article>
-      ))}
+      {photos.map((photo) => {
+        const isHidden = photo.hidden && !revealed.has(photo.id)
+        return (
+          <article key={photo.id} className={styles.card}>
+            <div className={styles.imageWrap}>
+              <img
+                src={photo.signedUrl}
+                alt={`Photo from ${photo.senderName}`}
+                className={`${styles.image} ${isHidden ? styles.imageHidden : ''}`}
+                loading="lazy"
+              />
+              {isHidden && (
+                <button
+                  type="button"
+                  className={styles.revealOverlay}
+                  onClick={() => reveal(photo.id)}
+                  aria-label="Reveal hidden photo"
+                >
+                  <EyeIcon />
+                  <span className={styles.revealLabel}>Hidden — click to reveal</span>
+                </button>
+              )}
+            </div>
+            <div className={styles.meta}>
+              <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
+              <span className={styles.sender}>{photo.senderName}</span>
+              <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
+            </div>
+            <CommentThread photoId={photo.id} userId={userId} />
+          </article>
+        )
+      })}
     </div>
   )
 }

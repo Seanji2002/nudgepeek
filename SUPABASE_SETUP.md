@@ -71,6 +71,7 @@ create table public.photos (
   id            uuid primary key default gen_random_uuid(),
   sender_id     uuid not null references public.profiles(id) on delete cascade,
   storage_path  text not null,
+  hidden        boolean not null default false,
   created_at    timestamptz not null default now()
 );
 

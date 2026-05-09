@@ -38,6 +38,7 @@ export interface IncomingPhotoPayload {
   senderName: string
   senderUserId: string
   sentAt: string
+  hidden: boolean
   fromCurrentUser: boolean
 }
 
@@ -46,4 +47,5 @@ export interface DisplayPhotoPayload {
   signedUrl: string
   senderName: string
   sentAt: string
+  hidden: boolean
 }

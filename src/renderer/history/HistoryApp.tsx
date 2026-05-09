@@ -149,8 +149,11 @@ export default function HistoryApp() {
             id: string
             sender_id: string
             storage_path: string
+            hidden: boolean | null
             created_at: string
           }
+
+          const hidden = row.hidden ?? false
 
           const [profileRes, signedUrl] = await Promise.all([
             supabase.from('profiles').select('display_name').eq('id', row.sender_id).single(),
@@ -164,6 +167,7 @@ export default function HistoryApp() {
             id: row.id,
             senderId: row.sender_id,
             storagePath: row.storage_path,
+            hidden,
             createdAt: row.created_at,
             senderName,
             signedUrl,
@@ -175,6 +179,7 @@ export default function HistoryApp() {
             senderName,
             senderUserId: row.sender_id,
             sentAt: row.created_at,
+            hidden,
             fromCurrentUser: row.sender_id === user.id,
           })
         },

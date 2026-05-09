@@ -31,6 +31,7 @@ export default function CameraCapture({
   const capturedBlobRef = useRef<Blob | null>(null)
   const [camError, setCamError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  const [hideMode, setHideMode] = useState(false)
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -151,7 +152,7 @@ export default function CameraCapture({
     setSending(true)
     onSendStart()
     try {
-      await uploadPhoto(blob, userId)
+      await uploadPhoto(blob, userId, hideMode)
       onClose()
     } catch (err: unknown) {
       onSendError(err instanceof Error ? err.message : 'Could not send photo')
@@ -227,12 +228,36 @@ export default function CameraCapture({
 
           {phase === 'review' && (
             <>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${hideMode ? styles.toggleBtnActive : ''}`}
+                onClick={() => setHideMode((v) => !v)}
+                disabled={sending}
+                aria-pressed={hideMode}
+                title={hideMode ? 'Hidden mode on — recipient taps to reveal' : 'Hide until tapped'}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.4 19.4 0 0 1 5.17-5.94" />
+                  <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.4 19.4 0 0 1-3.17 4.18" />
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <line x1="2" y1="2" x2="22" y2="22" />
+                </svg>
+              </button>
               <button className={styles.secondaryBtn} onClick={retake} disabled={sending}>
                 Retake
               </button>
               <button className={styles.primaryBtn} onClick={send} disabled={sending}>
                 {sending ? <span className={styles.btnSpinner} /> : null}
-                {sending ? 'Sending…' : 'Send'}
+                {sending ? 'Sending…' : hideMode ? 'Send Hidden' : 'Send'}
               </button>
             </>
           )}

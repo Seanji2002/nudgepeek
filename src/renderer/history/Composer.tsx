@@ -45,10 +45,31 @@ function CameraIcon() {
   )
 }
 
+function EyeOffIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.4 19.4 0 0 1 5.17-5.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.4 19.4 0 0 1-3.17 4.18" />
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  )
+}
+
 export default function Composer({ userId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { isSending, setSending, sendError, setSendError } = useHistoryStore()
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [hideMode, setHideMode] = useState(false)
 
   function triggerPicker() {
     fileInputRef.current?.click()
@@ -63,7 +84,7 @@ export default function Composer({ userId }: Props) {
     setSending(true)
     try {
       const blob = await downscaleImage(file, 1600, 0.85)
-      await uploadPhoto(blob, userId)
+      await uploadPhoto(blob, userId, hideMode)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[nudgepeek] send photo failed:', err)
@@ -96,13 +117,24 @@ export default function Composer({ userId }: Props) {
         </button>
 
         <button
+          type="button"
+          className={`${styles.toggleBtn} ${hideMode ? styles.toggleBtnActive : ''}`}
+          onClick={() => setHideMode((v) => !v)}
+          disabled={isSending}
+          aria-pressed={hideMode}
+          title={hideMode ? 'Hidden mode on — recipient taps to reveal' : 'Hide until tapped'}
+        >
+          <EyeOffIcon />
+        </button>
+
+        <button
           className={`${styles.sendBtn} ${isSending ? styles.sending : ''}`}
           onClick={triggerPicker}
           disabled={isSending}
-          title="Send a photo from file"
+          title={hideMode ? 'Send a hidden photo from file' : 'Send a photo from file'}
         >
           {isSending ? <span className={styles.btnSpinner} /> : <SendIcon />}
-          <span>{isSending ? 'Sending…' : 'Send Photo'}</span>
+          <span>{isSending ? 'Sending…' : hideMode ? 'Send Hidden' : 'Send Photo'}</span>
         </button>
       </div>
 

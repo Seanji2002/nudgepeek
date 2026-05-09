@@ -1,11 +1,15 @@
 import { Notification } from 'electron'
 
-export function showPhotoNotification(senderName: string, onClickShowWidget: () => void): void {
+export function showPhotoNotification(
+  senderName: string,
+  hidden: boolean,
+  onClickShowWidget: () => void,
+): void {
   if (!Notification.isSupported()) return
 
   const notif = new Notification({
     title: senderName + ' shared a photo',
-    body: 'Tap to view',
+    body: hidden ? 'Hidden — tap to reveal' : 'Tap to view',
     silent: false,
   })
 

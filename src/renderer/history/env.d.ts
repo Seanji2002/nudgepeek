@@ -9,6 +9,7 @@ interface IncomingPhotoPayload {
   senderName: string
   senderUserId: string
   sentAt: string
+  hidden: boolean
   fromCurrentUser: boolean
 }
 
