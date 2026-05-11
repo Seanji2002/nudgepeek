@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../shared/supabase.js'
 import { fetchAuthorName, getSignedUrl, listPhotos } from '../shared/api.js'
+import { clearLocalVault, loadGroupKeyFromCache } from '../shared/vault.js'
+import { decryptPhoto } from '../shared/crypto.js'
 import { useHistoryStore, type AuthUser } from './store.js'
 import { commentBus } from './commentBus.js'
 import Login from './Login.js'
@@ -12,7 +14,7 @@ import AdminPanel from './AdminPanel.js'
 import styles from './styles.module.css'
 
 export default function HistoryApp() {
-  const { user, setUser, setPhotos, prependPhoto, setLoading } = useHistoryStore()
+  const { user, setUser, setGroupKey, setPhotos, prependPhoto, setLoading } = useHistoryStore()
   const [authChecked, setAuthChecked] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
 
@@ -59,6 +61,20 @@ export default function HistoryApp() {
 
       if (!authUser.approved) return
 
+      // Ensure the group key is loaded. Login.tsx sets it on fresh signin;
+      // on session-restore we try the safeStorage cache. Cache miss means we
+      // need the password — sign back out and let the Login screen prompt.
+      let key = useHistoryStore.getState().groupKey
+      if (!key) {
+        key = await loadGroupKeyFromCache()
+        if (key) {
+          setGroupKey(key)
+        } else {
+          await supabase.auth.signOut()
+          return
+        }
+      }
+
       setLoading(true)
       try {
         setPhotos(await listPhotos(50))
@@ -66,7 +82,7 @@ export default function HistoryApp() {
         setLoading(false)
       }
     },
-    [setUser, setPhotos, setLoading],
+    [setUser, setGroupKey, setPhotos, setLoading],
   )
 
   const handleSignOut = useCallback(async () => {
@@ -120,12 +136,14 @@ export default function HistoryApp() {
         })
       } else if (event === 'SIGNED_OUT') {
         window.nudgeHistory.updateSession(null)
+        void clearLocalVault()
         setUser(null)
+        setGroupKey(null)
         setPhotos([])
       }
     })
     return () => subscription.unsubscribe()
-  }, [setUser, setPhotos])
+  }, [setUser, setGroupKey, setPhotos])
 
   // ─── Force sign-out from tray menu ───────────────────────────────────
   useEffect(() => {
@@ -173,15 +191,29 @@ export default function HistoryApp() {
             signedUrl,
           })
 
-          window.nudgeHistory.sendIncomingPhoto({
-            photoId: row.id,
-            signedUrl,
-            senderName,
-            senderUserId: row.sender_id,
-            sentAt: row.created_at,
-            hidden,
-            fromCurrentUser: row.sender_id === user.id,
-          })
+          const currentKey = useHistoryStore.getState().groupKey
+          if (!currentKey) {
+            console.warn('[realtime] vault locked — skipping widget delivery for', row.id)
+            return
+          }
+
+          try {
+            const resp = await fetch(signedUrl)
+            if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+            const cipher = new Uint8Array(await resp.arrayBuffer())
+            const photoBytes = await decryptPhoto(cipher, currentKey)
+            window.nudgeHistory.sendIncomingPhoto({
+              photoId: row.id,
+              photoBytes,
+              senderName,
+              senderUserId: row.sender_id,
+              sentAt: row.created_at,
+              hidden,
+              fromCurrentUser: row.sender_id === user.id,
+            })
+          } catch (err) {
+            console.error('[realtime] failed to decrypt incoming photo:', err)
+          }
         },
       )
       .subscribe()

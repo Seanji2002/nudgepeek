@@ -2,7 +2,9 @@ import React, { FormEvent, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { getCurrentSupabaseUrl, supabase } from '../shared/supabase.js'
 import { signUpWithName } from '../shared/api.js'
+import { provisionVaultOnSignin } from '../shared/vault.js'
 import { identifierToEmail, isValidName } from '../shared/identity.js'
+import { useHistoryStore } from './store.js'
 import styles from './Login.module.css'
 
 interface Props {
@@ -68,7 +70,10 @@ export default function Login({ onSuccess }: Props) {
           password,
         })
         if (authError) throw authError
-        if (data.session) await onSuccess(data.session)
+        if (data.session) {
+          await unlockVault(password, data.session.user.id)
+          await onSuccess(data.session)
+        }
       } else {
         if (password !== confirmPassword) throw new Error('Passwords do not match')
         if (!isValidName(name)) {
@@ -78,6 +83,7 @@ export default function Login({ onSuccess }: Props) {
         }
         const { session } = await signUpWithName(name, password)
         if (session) {
+          await unlockVault(password, session.user.id)
           await onSuccess(session)
         } else {
           setInfo(
@@ -94,6 +100,21 @@ export default function Login({ onSuccess }: Props) {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function unlockVault(pw: string, userId: string) {
+    const result = await provisionVaultOnSignin(pw, userId)
+    if (result.kind === 'grant-missing') {
+      // Approved but no grant in DB. Abort signin so the user doesn't land in
+      // an inconsistent app state.
+      await supabase.auth.signOut()
+      throw new Error(
+        'Your account is approved but your vault grant is missing. Ask the admin to re-approve you from the Admin panel.',
+      )
+    }
+    useHistoryStore
+      .getState()
+      .setGroupKey(result.kind === 'ready' ? result.groupKey : null)
   }
 
   const isSignup = mode === 'signup'

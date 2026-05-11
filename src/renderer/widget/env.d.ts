@@ -1,6 +1,6 @@
 interface DisplayPhotoPayload {
   photoId: string
-  signedUrl: string
+  photoBytes: Uint8Array
   senderName: string
   sentAt: string
   hidden: boolean

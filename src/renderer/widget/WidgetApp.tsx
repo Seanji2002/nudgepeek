@@ -59,7 +59,15 @@ export default function WidgetApp() {
     const api = window.nudgeWidget
     if (!api) return
     const remove = api.onPhotoDisplay((payload) => {
-      setPhoto(payload as Parameters<typeof setPhoto>[0])
+      const blob = new Blob([payload.photoBytes as BlobPart], { type: 'image/jpeg' })
+      const displayUrl = URL.createObjectURL(blob)
+      setPhoto({
+        photoId: payload.photoId,
+        displayUrl,
+        senderName: payload.senderName,
+        sentAt: payload.sentAt,
+        hidden: payload.hidden,
+      })
       if (prevTimerRef.current) clearTimeout(prevTimerRef.current)
       prevTimerRef.current = setTimeout(() => clearPrev(), 450)
     })
@@ -86,7 +94,7 @@ export default function WidgetApp() {
             <img
               key={`prev-${prevPhoto.photoId}`}
               className={`${styles.photo} ${styles.photoOut} ${prevHidden ? styles.photoHidden : ''}`}
-              src={prevPhoto.signedUrl}
+              src={prevPhoto.displayUrl}
               alt=""
               draggable={false}
             />
@@ -96,7 +104,7 @@ export default function WidgetApp() {
           <img
             key={`cur-${currentPhoto.photoId}`}
             className={`${styles.photo} ${styles.photoIn} ${currentHidden ? styles.photoHidden : ''}`}
-            src={currentPhoto.signedUrl}
+            src={currentPhoto.displayUrl}
             alt={`Photo from ${currentPhoto.senderName}`}
             draggable={false}
           />

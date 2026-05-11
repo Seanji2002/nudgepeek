@@ -11,12 +11,14 @@ export interface AuthUser {
 
 interface HistoryState {
   user: AuthUser | null
+  groupKey: Uint8Array | null
   photos: PhotoWithMeta[]
   isLoading: boolean
   isSending: boolean
   sendError: string | null
 
   setUser: (user: AuthUser | null) => void
+  setGroupKey: (key: Uint8Array | null) => void
   setPhotos: (photos: PhotoWithMeta[]) => void
   prependPhoto: (photo: PhotoWithMeta) => void
   setLoading: (v: boolean) => void
@@ -26,12 +28,14 @@ interface HistoryState {
 
 export const useHistoryStore = create<HistoryState>((set) => ({
   user: null,
+  groupKey: null,
   photos: [],
   isLoading: false,
   isSending: false,
   sendError: null,
 
   setUser: (user) => set({ user }),
+  setGroupKey: (groupKey) => set({ groupKey }),
   setPhotos: (photos) => set({ photos }),
   prependPhoto: (photo) => set((s) => ({ photos: [photo, ...s.photos] })),
   setLoading: (isLoading) => set({ isLoading }),

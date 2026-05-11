@@ -11,6 +11,9 @@ const CHANNELS = {
   SUPABASE_CONFIG_GET: 'supabase:config-get',
   SUPABASE_CONFIG_SET: 'supabase:config-set',
   SUPABASE_CONFIG_CLEAR: 'supabase:config-clear',
+  VAULT_GET: 'vault:get',
+  VAULT_SET: 'vault:set',
+  VAULT_CLEAR: 'vault:clear',
 } as const
 
 contextBridge.exposeInMainWorld('nudgeHistory', {
@@ -38,4 +41,10 @@ contextBridge.exposeInMainWorld('nudgeHistory', {
     ipcRenderer.invoke(CHANNELS.SUPABASE_CONFIG_SET, config),
 
   clearStoredSupabaseConfig: () => ipcRenderer.invoke(CHANNELS.SUPABASE_CONFIG_CLEAR),
+
+  getVault: () => ipcRenderer.invoke(CHANNELS.VAULT_GET) as Promise<Uint8Array | null>,
+
+  setVault: (key: Uint8Array) => ipcRenderer.invoke(CHANNELS.VAULT_SET, key) as Promise<void>,
+
+  clearVault: () => ipcRenderer.invoke(CHANNELS.VAULT_CLEAR) as Promise<void>,
 })

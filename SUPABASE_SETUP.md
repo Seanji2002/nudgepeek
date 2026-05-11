@@ -35,12 +35,18 @@ Open the **SQL Editor** and run the block below. It creates every table, functio
 
 ```sql
 -- ── profiles ────────────────────────────────────────────────────────────────
+-- Per-user crypto material (public_key, encrypted_private_key, private_key_nonce,
+-- kdf_salt) is populated on first sign-in from the app. See "Encryption" below.
 create table public.profiles (
-  id            uuid primary key references auth.users(id) on delete cascade,
-  display_name  text not null default '',
-  approved      boolean not null default false,
-  is_admin      boolean not null default false,
-  created_at    timestamptz not null default now()
+  id                    uuid primary key references auth.users(id) on delete cascade,
+  display_name          text not null default '',
+  approved              boolean not null default false,
+  is_admin              boolean not null default false,
+  public_key            text,
+  encrypted_private_key text,
+  private_key_nonce     text,
+  kdf_salt              text,
+  created_at            timestamptz not null default now()
 );
 
 -- Auto-create a profile row whenever a new auth user is inserted.
@@ -88,6 +94,19 @@ create table public.comments (
 
 create index comments_photo_id_created_at_idx
   on public.comments (photo_id, created_at);
+
+
+-- ── vault_grants ────────────────────────────────────────────────────────────
+-- A single shared group key encrypts every photo. Each approved member has a
+-- row here with the group key sealed to their X25519 public key (libsodium
+-- crypto_box_seal). An admin writes a member's row at approval time.
+-- sealed_group_key is base64-encoded bytes (libsodium crypto_box_seal output).
+create table public.vault_grants (
+  user_id          uuid primary key references public.profiles(id) on delete cascade,
+  sealed_group_key text not null,
+  granted_by       uuid not null references public.profiles(id),
+  created_at       timestamptz not null default now()
+);
 
 
 -- ── helpers ─────────────────────────────────────────────────────────────────
@@ -226,6 +245,25 @@ create policy "comments: delete own"
   using (auth.uid() = user_id);
 
 
+-- ── RLS: vault_grants ───────────────────────────────────────────────────────
+alter table public.vault_grants enable row level security;
+
+-- Members read only their own grant.
+create policy "vault_grants: read own"
+  on public.vault_grants for select
+  using (auth.uid() = user_id);
+
+-- Admins write grants for any user (used at approval time).
+create policy "vault_grants: admin insert"
+  on public.vault_grants for insert
+  with check (public.is_admin());
+
+create policy "vault_grants: admin update"
+  on public.vault_grants for update
+  using (public.is_admin())
+  with check (public.is_admin());
+
+
 -- ── Realtime ────────────────────────────────────────────────────────────────
 alter publication supabase_realtime add table public.photos;
 alter publication supabase_realtime add table public.comments;
@@ -286,11 +324,50 @@ NudgePeek's signup flow puts new accounts in a **pending** state. You need at le
    where id = '<your-user-uuid>';
    ```
 
-You can now sign in to NudgePeek with your email + password. The **Admin** button in the header opens the pending-approvals modal, where you'll approve or reject everyone else.
+You can now sign in to NudgePeek with your email + password. On first sign-in the app will generate your encryption keypair and mint the group key for the vault. The **Admin** button in the header opens the pending-approvals modal, where you'll approve or reject everyone else.
 
 ---
 
-## 6. Useful operations
+## 6. Encryption
+
+Photos are encrypted client-side before upload: a single shared **group key** encrypts every photo (XChaCha20-Poly1305 from libsodium), and each member's copy of the group key is sealed to their X25519 public key in `vault_grants`. A leaked database or storage bucket reveals only random bytes.
+
+**Bootstrap order matters:**
+
+1. The admin signs in first. The app sees `public_key IS NULL`, generates a keypair (private key encrypted with Argon2id-derived key from the admin's password), mints a 32-byte group key, and seals it to the admin's own public key.
+2. Each member signs in next. The app generates their keypair the same way and writes `public_key` to their `profiles` row — but they cannot decrypt photos yet.
+3. The admin approves each pending member from the Admin panel. Approval now also seals the group key to the member's public key and writes a `vault_grants` row.
+4. Members sign in again (or refresh) and can decrypt photos from now on.
+
+**Migrating an existing NudgePeek deployment to encrypted photos:** apply the schema diff in section 4, then run the wipe-and-reset below in the SQL editor. Existing photos cannot be re-encrypted retroactively (no one has the original plaintext).
+
+```sql
+-- Wipe all photos (they're plaintext and will be rejected by the new build).
+delete from storage.objects where bucket_id = 'photos';
+delete from public.photos;
+
+-- Un-approve every non-admin. They'll re-appear in the Admin panel and
+-- you re-approve them — at which point the new build seals the group
+-- key to each member.
+update public.profiles set approved = false where not is_admin;
+
+-- Optional: clear any pre-existing crypto fields if you ran an earlier
+-- experiment. Fresh deployments can skip this.
+update public.profiles
+  set public_key = null,
+      encrypted_private_key = null,
+      private_key_nonce = null,
+      kdf_salt = null;
+delete from public.vault_grants;
+```
+
+After the SQL: install the new app build on the admin's machine → sign in → admin is bootstrapped. Then each member updates the app → signs in → admin re-approves them from the Admin panel.
+
+**Recovery if a member forgets their password:** they cannot recover their private key. The admin must delete the member's auth user via the dashboard; the member re-signs up and the admin re-approves them. Past photos remain decryptable for every other member.
+
+---
+
+## 7. Useful operations
 
 ```sql
 -- Run the auto-cleanup right now (handy for verifying it works):
