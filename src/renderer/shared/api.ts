@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase.js'
 import { identifierToEmail } from './identity.js'
+import { encryptPhoto, fromBase64, sealGroupKey, toBase64 } from './crypto.js'
 import type { CommentWithMeta, PendingProfile, PhotoWithMeta } from './types.js'
 
 export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
@@ -42,12 +43,19 @@ export async function getSignedUrl(storagePath: string): Promise<string> {
   return data.signedUrl
 }
 
-export async function uploadPhoto(blob: Blob, senderId: string, hidden = false): Promise<void> {
-  const filename = `${senderId}/${crypto.randomUUID()}.jpg`
+export async function uploadPhoto(
+  blob: Blob,
+  senderId: string,
+  groupKey: Uint8Array,
+  hidden = false,
+): Promise<void> {
+  const plain = new Uint8Array(await blob.arrayBuffer())
+  const payload = await encryptPhoto(plain, groupKey)
+  const filename = `${senderId}/${crypto.randomUUID()}.bin`
 
   const { error: uploadError } = await supabase.storage
     .from('photos')
-    .upload(filename, blob, { contentType: 'image/jpeg', upsert: false })
+    .upload(filename, payload, { contentType: 'application/octet-stream', upsert: false })
 
   if (uploadError) throw uploadError
 
@@ -188,8 +196,113 @@ export async function listPendingProfiles(): Promise<PendingProfile[]> {
   }))
 }
 
-export async function approveProfile(profileId: string): Promise<void> {
+export async function approveProfile(
+  profileId: string,
+  groupKey: Uint8Array,
+  grantedBy: string,
+): Promise<void> {
+  const publicKey = await fetchPublicKey(profileId)
+  if (!publicKey) {
+    throw new Error(
+      'This user has not signed in from the new app build yet. Ask them to sign in once, then try approving again.',
+    )
+  }
+  const sealed = await sealGroupKey(groupKey, publicKey)
+  await writeGrant(profileId, sealed, grantedBy)
   const { error } = await supabase.from('profiles').update({ approved: true }).eq('id', profileId)
+  if (error) throw error
+}
+
+export interface OwnCryptoMaterial {
+  publicKey: Uint8Array | null
+  encryptedPrivateKey: Uint8Array | null
+  privateKeyNonce: Uint8Array | null
+  kdfSalt: Uint8Array | null
+  isAdmin: boolean
+  approved: boolean
+}
+
+export async function fetchOwnCryptoMaterial(userId: string): Promise<OwnCryptoMaterial> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('public_key, encrypted_private_key, private_key_nonce, kdf_salt, is_admin, approved')
+    .eq('id', userId)
+    .single()
+  if (error) throw error
+  const row = data as {
+    public_key: string | null
+    encrypted_private_key: string | null
+    private_key_nonce: string | null
+    kdf_salt: string | null
+    is_admin: boolean | null
+    approved: boolean | null
+  }
+  return {
+    publicKey: row.public_key ? fromBase64(row.public_key) : null,
+    encryptedPrivateKey: row.encrypted_private_key ? fromBase64(row.encrypted_private_key) : null,
+    privateKeyNonce: row.private_key_nonce ? fromBase64(row.private_key_nonce) : null,
+    kdfSalt: row.kdf_salt ? fromBase64(row.kdf_salt) : null,
+    isAdmin: row.is_admin ?? false,
+    approved: row.approved ?? false,
+  }
+}
+
+export async function writeOwnCryptoMaterial(
+  userId: string,
+  material: {
+    publicKey: Uint8Array
+    encryptedPrivateKey: Uint8Array
+    privateKeyNonce: Uint8Array
+    kdfSalt: Uint8Array
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      public_key: toBase64(material.publicKey),
+      encrypted_private_key: toBase64(material.encryptedPrivateKey),
+      private_key_nonce: toBase64(material.privateKeyNonce),
+      kdf_salt: toBase64(material.kdfSalt),
+    })
+    .eq('id', userId)
+  if (error) throw error
+}
+
+export async function fetchPublicKey(userId: string): Promise<Uint8Array | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('public_key')
+    .eq('id', userId)
+    .single()
+  if (error) throw error
+  const pk = (data as { public_key: string | null } | null)?.public_key
+  return pk ? fromBase64(pk) : null
+}
+
+export async function fetchOwnGrant(userId: string): Promise<Uint8Array | null> {
+  const { data, error } = await supabase
+    .from('vault_grants')
+    .select('sealed_group_key')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  const sealed = (data as { sealed_group_key: string } | null)?.sealed_group_key
+  return sealed ? fromBase64(sealed) : null
+}
+
+export async function writeGrant(
+  userId: string,
+  sealedGroupKey: Uint8Array,
+  grantedBy: string,
+): Promise<void> {
+  const { error } = await supabase.from('vault_grants').upsert(
+    {
+      user_id: userId,
+      sealed_group_key: toBase64(sealedGroupKey),
+      granted_by: grantedBy,
+    },
+    { onConflict: 'user_id' },
+  )
   if (error) throw error
 }
 

@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useHistoryStore } from './store.js'
 import CommentThread from './CommentThread.js'
+import { useDecryptedPhoto } from './useDecryptedPhoto.js'
+import type { PhotoWithMeta } from '../shared/types.js'
 import styles from './Feed.module.css'
 
 interface Props {
@@ -88,38 +90,62 @@ export default function Feed({ userId }: Props) {
 
   return (
     <div className={styles.feed}>
-      {photos.map((photo) => {
-        const isHidden = photo.hidden && !revealed.has(photo.id)
-        return (
-          <article key={photo.id} className={styles.card}>
-            <div className={styles.imageWrap}>
-              <img
-                src={photo.signedUrl}
-                alt={`Photo from ${photo.senderName}`}
-                className={`${styles.image} ${isHidden ? styles.imageHidden : ''}`}
-                loading="lazy"
-              />
-              {isHidden && (
-                <button
-                  type="button"
-                  className={styles.revealOverlay}
-                  onClick={() => reveal(photo.id)}
-                  aria-label="Reveal hidden photo"
-                >
-                  <EyeIcon />
-                  <span className={styles.revealLabel}>Hidden — click to reveal</span>
-                </button>
-              )}
-            </div>
-            <div className={styles.meta}>
-              <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
-              <span className={styles.sender}>{photo.senderName}</span>
-              <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
-            </div>
-            <CommentThread photoId={photo.id} userId={userId} />
-          </article>
-        )
-      })}
+      {photos.map((photo) => (
+        <PhotoCard
+          key={photo.id}
+          photo={photo}
+          userId={userId}
+          revealed={revealed.has(photo.id)}
+          onReveal={() => reveal(photo.id)}
+        />
+      ))}
     </div>
+  )
+}
+
+interface PhotoCardProps {
+  photo: PhotoWithMeta
+  userId: string
+  revealed: boolean
+  onReveal: () => void
+}
+
+function PhotoCard({ photo, userId, revealed, onReveal }: PhotoCardProps) {
+  const { src, error } = useDecryptedPhoto(photo.signedUrl)
+  const isHidden = photo.hidden && !revealed
+  return (
+    <article className={styles.card}>
+      <div className={styles.imageWrap}>
+        {src ? (
+          <img
+            src={src}
+            alt={`Photo from ${photo.senderName}`}
+            className={`${styles.image} ${isHidden ? styles.imageHidden : ''}`}
+            loading="lazy"
+          />
+        ) : (
+          <div className={styles.imagePlaceholder}>
+            {error ? `Decryption failed: ${error}` : 'Decrypting…'}
+          </div>
+        )}
+        {isHidden && src && (
+          <button
+            type="button"
+            className={styles.revealOverlay}
+            onClick={onReveal}
+            aria-label="Reveal hidden photo"
+          >
+            <EyeIcon />
+            <span className={styles.revealLabel}>Hidden — click to reveal</span>
+          </button>
+        )}
+      </div>
+      <div className={styles.meta}>
+        <div className={styles.avatarSmall}>{photo.senderName.charAt(0).toUpperCase()}</div>
+        <span className={styles.sender}>{photo.senderName}</span>
+        <span className={styles.time}>{formatRelativeTime(photo.createdAt)}</span>
+      </div>
+      <CommentThread photoId={photo.id} userId={userId} />
+    </article>
   )
 }

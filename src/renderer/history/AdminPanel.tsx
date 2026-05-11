@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { approveProfile, listPendingProfiles, rejectProfile } from '../shared/api.js'
+import { useHistoryStore } from './store.js'
 import type { PendingProfile } from '../shared/types.js'
 import styles from './AdminPanel.module.css'
 
@@ -43,6 +44,8 @@ export default function AdminPanel({ onClose }: Props) {
   const [working, setWorking] = useState<string | null>(null)
   const [confirmReject, setConfirmReject] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const groupKey = useHistoryStore((s) => s.groupKey)
+  const user = useHistoryStore((s) => s.user)
 
   useEffect(() => {
     let cancelled = false
@@ -67,10 +70,14 @@ export default function AdminPanel({ onClose }: Props) {
   }, [onClose])
 
   async function approve(id: string) {
+    if (!groupKey || !user) {
+      setError('Vault locked — sign in again before approving members.')
+      return
+    }
     setWorking(id)
     setError(null)
     try {
-      await approveProfile(id)
+      await approveProfile(id, groupKey, user.id)
       setPending((prev) => (prev ?? []).filter((p) => p.id !== id))
     } catch (e: unknown) {
       setError(messageOf(e))

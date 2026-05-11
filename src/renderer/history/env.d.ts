@@ -5,7 +5,7 @@ interface StoredSession {
 
 interface IncomingPhotoPayload {
   photoId: string
-  signedUrl: string
+  photoBytes: Uint8Array
   senderName: string
   senderUserId: string
   sentAt: string
@@ -29,6 +29,9 @@ interface NudgeHistoryApi {
   getStoredSupabaseConfig: () => Promise<StoredSupabaseConfig | null>
   setStoredSupabaseConfig: (config: StoredSupabaseConfig) => Promise<true>
   clearStoredSupabaseConfig: () => Promise<true>
+  getVault: () => Promise<Uint8Array | null>
+  setVault: (key: Uint8Array) => Promise<void>
+  clearVault: () => Promise<void>
 }
 
 interface Window {

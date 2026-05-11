@@ -8,6 +8,7 @@ import {
   loadSupabaseConfig,
   clearSupabaseConfig,
 } from './supabaseConfig.js'
+import { initVaultStorage, saveVault, loadVault, clearVault } from './vault.js'
 import {
   createWidgetWindow,
   getWidgetWindow,
@@ -49,6 +50,7 @@ app.whenReady().then(() => {
   initPrefs()
   initSessionStorage()
   initSupabaseConfigStorage()
+  initVaultStorage()
 
   const storedSession = loadSession()
 
@@ -73,6 +75,7 @@ app.whenReady().then(() => {
     onAutoLaunchChange: setAutoLaunch,
     onSignOut: () => {
       clearSession()
+      clearVault()
       setTrayLoggedIn(false)
       hideWidget()
       getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.AUTH_FORCE_SIGNOUT)
@@ -115,6 +118,7 @@ app.whenReady().then(() => {
       if (!getWidgetWindow()?.isVisible()) showWidget()
     } else {
       clearSession()
+      clearVault()
       setTrayLoggedIn(false)
       hideWidget()
     }
@@ -124,7 +128,7 @@ app.whenReady().then(() => {
   ipcMain.on(IPC_FROM_RENDERER.PHOTO_INCOMING, (_e, payload: IncomingPhotoPayload) => {
     const displayPayload: DisplayPhotoPayload = {
       photoId: payload.photoId,
-      signedUrl: payload.signedUrl,
+      photoBytes: payload.photoBytes,
       senderName: payload.senderName,
       sentAt: payload.sentAt,
       hidden: payload.hidden,
@@ -171,9 +175,26 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_INVOKE.SUPABASE_CONFIG_CLEAR, () => {
     clearSupabaseConfig()
     clearSession()
+    clearVault()
     setTrayLoggedIn(false)
     hideWidget()
     return true
+  })
+
+  // ─── IPC: vault (group key) ─────────────────────────────────────────────
+  ipcMain.handle(IPC_INVOKE.VAULT_GET, (): Uint8Array | null => {
+    return loadVault()
+  })
+
+  ipcMain.handle(IPC_INVOKE.VAULT_SET, (_e, key: Uint8Array) => {
+    if (!(key instanceof Uint8Array) || key.length === 0) {
+      throw new Error('vault key must be a non-empty Uint8Array')
+    }
+    saveVault(key)
+  })
+
+  ipcMain.handle(IPC_INVOKE.VAULT_CLEAR, () => {
+    clearVault()
   })
 })
 

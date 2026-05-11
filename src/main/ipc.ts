@@ -8,6 +8,9 @@ export const IPC_INVOKE = {
   SUPABASE_CONFIG_GET: 'supabase:config-get',
   SUPABASE_CONFIG_SET: 'supabase:config-set',
   SUPABASE_CONFIG_CLEAR: 'supabase:config-clear',
+  VAULT_GET: 'vault:get',
+  VAULT_SET: 'vault:set',
+  VAULT_CLEAR: 'vault:clear',
 } as const
 
 export const IPC_FROM_RENDERER = {
@@ -34,7 +37,7 @@ export interface StoredSupabaseConfig {
 
 export interface IncomingPhotoPayload {
   photoId: string
-  signedUrl: string
+  photoBytes: Uint8Array
   senderName: string
   senderUserId: string
   sentAt: string
@@ -44,7 +47,7 @@ export interface IncomingPhotoPayload {
 
 export interface DisplayPhotoPayload {
   photoId: string
-  signedUrl: string
+  photoBytes: Uint8Array
   senderName: string
   sentAt: string
   hidden: boolean

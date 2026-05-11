@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { uploadPhoto } from '../shared/api.js'
+import { useHistoryStore } from './store.js'
 import styles from './CameraCapture.module.css'
 
 interface Props {
@@ -32,6 +33,7 @@ export default function CameraCapture({
   const [camError, setCamError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [hideMode, setHideMode] = useState(false)
+  const groupKey = useHistoryStore((s) => s.groupKey)
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -148,11 +150,15 @@ export default function CameraCapture({
   async function send() {
     const blob = capturedBlobRef.current
     if (!blob) return
+    if (!groupKey) {
+      onSendError('Vault locked — sign in again to unlock photo encryption.')
+      return
+    }
 
     setSending(true)
     onSendStart()
     try {
-      await uploadPhoto(blob, userId, hideMode)
+      await uploadPhoto(blob, userId, groupKey, hideMode)
       onClose()
     } catch (err: unknown) {
       onSendError(err instanceof Error ? err.message : 'Could not send photo')

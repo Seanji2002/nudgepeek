@@ -67,7 +67,7 @@ function EyeOffIcon() {
 
 export default function Composer({ userId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { isSending, setSending, sendError, setSendError } = useHistoryStore()
+  const { groupKey, isSending, setSending, sendError, setSendError } = useHistoryStore()
   const [cameraOpen, setCameraOpen] = useState(false)
   const [hideMode, setHideMode] = useState(false)
 
@@ -80,11 +80,16 @@ export default function Composer({ userId }: Props) {
     if (!file) return
     e.target.value = ''
 
+    if (!groupKey) {
+      setSendError('Vault locked — sign in again to unlock photo encryption.')
+      return
+    }
+
     setSendError(null)
     setSending(true)
     try {
       const blob = await downscaleImage(file, 1600, 0.85)
-      await uploadPhoto(blob, userId, hideMode)
+      await uploadPhoto(blob, userId, groupKey, hideMode)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[nudgepeek] send photo failed:', err)
