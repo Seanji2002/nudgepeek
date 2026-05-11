@@ -335,33 +335,9 @@ Photos are encrypted client-side before upload: a single shared **group key** en
 **Bootstrap order matters:**
 
 1. The admin signs in first. The app sees `public_key IS NULL`, generates a keypair (private key encrypted with Argon2id-derived key from the admin's password), mints a 32-byte group key, and seals it to the admin's own public key.
-2. Each member signs in next. The app generates their keypair the same way and writes `public_key` to their `profiles` row — but they cannot decrypt photos yet.
-3. The admin approves each pending member from the Admin panel. Approval now also seals the group key to the member's public key and writes a `vault_grants` row.
-4. Members sign in again (or refresh) and can decrypt photos from now on.
-
-**Migrating an existing NudgePeek deployment to encrypted photos:** apply the schema diff in section 4, then run the wipe-and-reset below in the SQL editor. Existing photos cannot be re-encrypted retroactively (no one has the original plaintext).
-
-```sql
--- Wipe all photos (they're plaintext and will be rejected by the new build).
-delete from storage.objects where bucket_id = 'photos';
-delete from public.photos;
-
--- Un-approve every non-admin. They'll re-appear in the Admin panel and
--- you re-approve them — at which point the new build seals the group
--- key to each member.
-update public.profiles set approved = false where not is_admin;
-
--- Optional: clear any pre-existing crypto fields if you ran an earlier
--- experiment. Fresh deployments can skip this.
-update public.profiles
-  set public_key = null,
-      encrypted_private_key = null,
-      private_key_nonce = null,
-      kdf_salt = null;
-delete from public.vault_grants;
-```
-
-After the SQL: install the new app build on the admin's machine → sign in → admin is bootstrapped. Then each member updates the app → signs in → admin re-approves them from the Admin panel.
+2. Each member signs up next. The app generates their keypair the same way and writes `public_key` to their `profiles` row — but they cannot decrypt photos yet.
+3. The admin approves each pending member from the Admin panel. Approval also seals the group key to the member's public key and writes a `vault_grants` row.
+4. Members sign in again and can decrypt photos from now on.
 
 **Recovery if a member forgets their password:** they cannot recover their private key. The admin must delete the member's auth user via the dashboard; the member re-signs up and the admin re-approves them. Past photos remain decryptable for every other member.
 
