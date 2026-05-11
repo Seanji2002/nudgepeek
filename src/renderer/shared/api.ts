@@ -290,6 +290,12 @@ export async function fetchOwnGrant(userId: string): Promise<Uint8Array | null> 
   return sealed ? fromBase64(sealed) : null
 }
 
+export async function vaultExists(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('has_any_vault_grant')
+  if (error) throw error
+  return data === true
+}
+
 export async function writeGrant(
   userId: string,
   sealedGroupKey: Uint8Array,
