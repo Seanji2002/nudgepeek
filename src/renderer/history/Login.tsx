@@ -112,9 +112,7 @@ export default function Login({ onSuccess }: Props) {
         'Your account is approved but your vault grant is missing. Ask the admin to re-approve you from the Admin panel.',
       )
     }
-    useHistoryStore
-      .getState()
-      .setGroupKey(result.kind === 'ready' ? result.groupKey : null)
+    useHistoryStore.getState().setGroupKey(result.kind === 'ready' ? result.groupKey : null)
   }
 
   const isSignup = mode === 'signup'

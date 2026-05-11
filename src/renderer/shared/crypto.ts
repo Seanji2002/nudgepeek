@@ -97,10 +97,7 @@ export async function encryptPhoto(plain: Uint8Array, groupKey: Uint8Array): Pro
   return payload
 }
 
-export async function decryptPhoto(
-  payload: Uint8Array,
-  groupKey: Uint8Array,
-): Promise<Uint8Array> {
+export async function decryptPhoto(payload: Uint8Array, groupKey: Uint8Array): Promise<Uint8Array> {
   const s = await sodium()
   const n = s.crypto_secretbox_NONCEBYTES
   if (payload.length < n + s.crypto_secretbox_MACBYTES) {
