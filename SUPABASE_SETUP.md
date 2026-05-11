@@ -398,4 +398,71 @@ delete from auth.users where id = '<uuid>';
 
 ---
 
+## 8. Full reset (nuke everything)
+
+When you want to start over inside the **same** Supabase project — drop every NudgePeek table, function, policy, storage object, cron job, and auth user — do these two steps in order. After they finish, re-run the schema block from section 4 and re-bootstrap the host account from section 5.
+
+> **This destroys all data.** Every photo, comment, profile, vault grant, and login is gone. There is no undo. Don't run this against a production project unless that is exactly what you want.
+
+### Step 1 — Empty + delete the `photos` bucket from the dashboard
+
+Supabase blocks direct SQL deletes on `storage.objects` and `storage.buckets` (its `protect_delete` trigger is owned by `supabase_storage_admin`, which the SQL editor isn't a member of). The dashboard goes through the Storage API and works without ceremony.
+
+1. Open your Supabase project → **Storage** → click the **`photos`** bucket.
+2. **Select all** objects (checkbox at top of the list) → **⋯ → Delete**. Confirm.
+3. Go back to the buckets list → next to **`photos`**, click **⋯ → Delete bucket**. Confirm.
+
+If the bucket doesn't exist yet (fresh project, schema never run), skip this step.
+
+### Step 2 — Run the SQL block
+
+Paste this into the SQL editor. It drops the cron job, the app's tables (cascading their RLS policies, indexes, triggers, and realtime publication entries), the helper functions, and every auth user.
+
+```sql
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │  FULL RESET — drops every NudgePeek object in this project (db side).   │
+-- │  Prereq: bucket already emptied/deleted via the dashboard (step 1).     │
+-- │  After running, re-run section 4 (schema) and section 5 (bootstrap).    │
+-- └─────────────────────────────────────────────────────────────────────────┘
+
+-- 1. Stop the cleanup cron so it can't fire mid-wipe. Wrapped in DO so the
+--    statement succeeds even if the job was never scheduled.
+do $$
+begin
+  perform cron.unschedule('delete-old-photos');
+exception when others then null;
+end $$;
+
+-- 2. Drop the storage bucket's RLS policies. (The bucket itself is gone via
+--    the dashboard in step 1; these are leftover policies on storage.objects.)
+drop policy if exists "storage photos: read by approved"   on storage.objects;
+drop policy if exists "storage photos: insert own folder"  on storage.objects;
+
+-- 3. Drop the app's tables. CASCADE drops their RLS policies, indexes,
+--    triggers, and removes them from realtime publications.
+drop table if exists public.vault_grants cascade;
+drop table if exists public.comments     cascade;
+drop table if exists public.photos       cascade;
+drop table if exists public.profiles     cascade;
+
+-- 4. Drop helper functions and the auto-profile trigger.
+drop function if exists public.handle_new_user()    cascade;
+drop function if exists public.is_admin()           cascade;
+drop function if exists public.reject_user(uuid)    cascade;
+drop function if exists public.delete_old_photos()  cascade;
+
+-- 5. Delete every auth user. The SQL editor's role can touch auth.users.
+delete from auth.users;
+```
+
+After the reset:
+
+1. Re-run the full SQL block in **section 4** to recreate the schema (it `INSERT … ON CONFLICT DO NOTHING`s the `photos` bucket back into existence).
+2. Re-do the host bootstrap from **section 5** (create your admin in Authentication → Users, then flip `approved = true, is_admin = true` for that row).
+3. Open the app and sign in as the admin — first sign-in will mint a fresh keypair and group key.
+
+Existing app installs still have a cached vault key in their OS keychain pointing at the old group key. They'll get a confusing "decryption failed" on next launch. Have each member sign out from the tray (which calls `clearVault` on the main process) before signing back in, or just delete `vault.enc` from the app's user-data directory manually.
+
+---
+
 Once these steps are complete, share your **Project URL** + **anon key** with group members. They paste them into NudgePeek's first-launch setup screen, sign up with a name + password, and wait for you to approve them.
