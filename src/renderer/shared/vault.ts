@@ -11,6 +11,7 @@ import {
 import {
   fetchOwnCryptoMaterial,
   fetchOwnGrant,
+  vaultExists,
   writeGrant,
   writeOwnCryptoMaterial,
 } from './api.js'
@@ -70,6 +71,21 @@ export async function provisionVaultOnSignin(
   )
   const sealed = await fetchOwnGrant(userId)
   if (!sealed) {
+    // First-admin recovery: an admin with a provisioned keypair but no grant.
+    // This happens when the account signed up as a non-admin (provisioning the
+    // keypair) and was later promoted via SQL. If the vault has never been
+    // bootstrapped, mint a fresh group key sealed to the admin's existing
+    // public key. Otherwise, an existing admin needs to re-issue the grant.
+    if (material.approved && material.isAdmin) {
+      const exists = await vaultExists()
+      if (!exists) {
+        const groupKey = await genGroupKey()
+        const sealedSelf = await sealGroupKey(groupKey, material.publicKey)
+        await writeGrant(userId, sealedSelf, userId)
+        await cacheGroupKey(groupKey)
+        return { kind: 'ready', groupKey }
+      }
+    }
     return material.approved ? { kind: 'grant-missing' } : { kind: 'pending-approval' }
   }
   const groupKey = await unsealGroupKey(sealed, material.publicKey, privateKey)

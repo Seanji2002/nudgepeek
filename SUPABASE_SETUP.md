@@ -145,6 +145,22 @@ $$;
 
 grant execute on function public.reject_user(uuid) to authenticated;
 
+-- Security-definer probe used by the app to ask "has anyone in this project
+-- been issued a vault grant yet?" — needed so the first admin can detect
+-- they're the one bootstrapping the vault even if their keypair was
+-- provisioned earlier (signed up via app, then promoted via SQL).
+create or replace function public.has_any_vault_grant()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (select 1 from public.vault_grants);
+$$;
+
+grant execute on function public.has_any_vault_grant() to authenticated;
+
 -- Daily cleanup: drop photos (and their files + cascading comments) older
 -- than 3 days. Runs as the function owner so it can bypass RLS.
 create or replace function public.delete_old_photos()
