@@ -20,6 +20,11 @@ export function showPhotoNotification(
   notif.show()
 }
 
+export function showInfoNotification(title: string, body: string): void {
+  if (!Notification.isSupported()) return
+  new Notification({ title, body, silent: false }).show()
+}
+
 export function showSummaryNotification(
   count: number,
   senderNames: string[],

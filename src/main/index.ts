@@ -19,7 +19,11 @@ import {
 import { createHistoryWindow, getHistoryWindow, showHistoryWindow } from './windows/history.js'
 import { createTray, setTrayLoggedIn } from './tray.js'
 import { setAutoLaunch, getAutoLaunchEnabled } from './autoLaunch.js'
-import { showPhotoNotification, showSummaryNotification } from './notifications.js'
+import {
+  showPhotoNotification,
+  showSummaryNotification,
+  showInfoNotification,
+} from './notifications.js'
 import {
   IPC_FROM_RENDERER,
   IPC_INVOKE,
@@ -71,33 +75,61 @@ app.whenReady().then(() => {
     }
   })
 
-  createTray({
-    onToggleWidget: toggleWidget,
-    onOpenHistory: showHistoryWindow,
-    onAutoLaunchChange: setAutoLaunch,
-    onSignOut: () => {
-      clearSession()
-      clearVault()
-      setTrayLoggedIn(false)
-      hideWidget()
-      getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.AUTH_FORCE_SIGNOUT)
-    },
-  })
-
   // ─── Auto-update (production builds only) ───────────────────────────────
   // The renderer drives the user flow: a popup asks before downloading and
   // again before installing. autoInstallOnAppQuit stays off so quitting from
   // the tray never silently restarts the user mid-action.
+  //
+  // `manualCheckPending` distinguishes the startup auto-check (silent on
+  // up-to-date / error) from a user-triggered "Check for Updates…" click
+  // (needs visible feedback either way).
+  let manualCheckPending = false
+
+  const triggerManualUpdateCheck = () => {
+    if (!app.isPackaged) {
+      showInfoNotification('Updates disabled in dev', 'Auto-updates only run in packaged builds.')
+      return
+    }
+    manualCheckPending = true
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[updater] manual checkForUpdates failed:', err)
+      if (manualCheckPending) {
+        manualCheckPending = false
+        showInfoNotification(
+          "Couldn't check for updates",
+          'Check your internet connection and try again.',
+        )
+      }
+    })
+  }
+
   if (app.isPackaged) {
     autoUpdater.autoDownload = false
     autoUpdater.autoInstallOnAppQuit = false
 
-    autoUpdater.on('error', (err) => console.error('[updater] error:', err))
+    autoUpdater.on('error', (err) => {
+      console.error('[updater] error:', err)
+      if (manualCheckPending) {
+        manualCheckPending = false
+        showInfoNotification("Couldn't check for updates", err.message || 'Unknown error.')
+      }
+    })
 
     autoUpdater.on('update-available', (info) => {
+      manualCheckPending = false // the modal is the user-facing feedback
       getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.UPDATE_AVAILABLE, {
         version: info.version,
       })
+    })
+
+    autoUpdater.on('update-not-available', () => {
+      if (manualCheckPending) {
+        manualCheckPending = false
+        showInfoNotification(
+          "You're up to date",
+          `NudgePeek ${app.getVersion()} is the latest version.`,
+        )
+      }
     })
 
     autoUpdater.on('download-progress', (p) => {
@@ -110,6 +142,7 @@ app.whenReady().then(() => {
     })
 
     autoUpdater.on('update-downloaded', (info) => {
+      manualCheckPending = false
       getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.UPDATE_DOWNLOADED, {
         version: info.version,
       })
@@ -119,6 +152,20 @@ app.whenReady().then(() => {
       console.error('[updater] checkForUpdates failed:', err)
     })
   }
+
+  createTray({
+    onToggleWidget: toggleWidget,
+    onOpenHistory: showHistoryWindow,
+    onAutoLaunchChange: setAutoLaunch,
+    onSignOut: () => {
+      clearSession()
+      clearVault()
+      setTrayLoggedIn(false)
+      hideWidget()
+      getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.AUTH_FORCE_SIGNOUT)
+    },
+    onCheckForUpdates: app.isPackaged ? triggerManualUpdateCheck : undefined,
+  })
 
   // ─── IPC: updater (renderer drives the flow) ────────────────────────────
   ipcMain.handle(IPC_INVOKE.UPDATER_DOWNLOAD, () => autoUpdater.downloadUpdate())

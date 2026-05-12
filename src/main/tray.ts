@@ -7,6 +7,8 @@ export interface TrayCallbacks {
   onOpenHistory: () => void
   onAutoLaunchChange: (enabled: boolean) => void
   onSignOut: () => void
+  // Optional — only wired when the autoUpdater is enabled (packaged builds).
+  onCheckForUpdates?: () => void
 }
 
 let tray: Tray | null = null
@@ -56,6 +58,10 @@ function refreshMenu(): void {
     click: () => cb.onSignOut(),
   }
 
+  const checkUpdatesItem: Electron.MenuItemConstructorOptions | null = cb.onCheckForUpdates
+    ? { label: 'Check for Updates…', click: () => cb.onCheckForUpdates?.() }
+    : null
+
   const template: Electron.MenuItemConstructorOptions[] = [
     { label: 'Show / Hide Widget', click: () => cb.onToggleWidget() },
     { label: 'Open History', click: () => cb.onOpenHistory() },
@@ -66,6 +72,7 @@ function refreshMenu(): void {
       checked: autoEnabled,
       click: (item) => cb.onAutoLaunchChange(item.checked),
     },
+    ...(checkUpdatesItem ? [checkUpdatesItem] : []),
     { type: 'separator' },
     ...(isLoggedIn ? [signOutItem] : []),
     { label: 'Quit NudgePeek', role: 'quit' },
