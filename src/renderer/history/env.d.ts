@@ -25,6 +25,17 @@ interface SeedQueuePayload {
   photos: DisplayPhotoPayload[]
 }
 
+interface UpdateInfoPayload {
+  version: string
+}
+
+interface UpdateProgressPayload {
+  percent: number
+  bytesPerSecond: number
+  transferred: number
+  total: number
+}
+
 interface StoredSupabaseConfig {
   url: string
   anonKey: string
@@ -47,6 +58,11 @@ interface NudgeHistoryApi {
   sendSeedQueue: (payload: SeedQueuePayload) => void
   onWidgetAck: (callback: (photoId: string) => void) => () => void
   onPowerResume: (callback: () => void) => () => void
+  onUpdateAvailable: (callback: (payload: UpdateInfoPayload) => void) => () => void
+  onUpdateProgress: (callback: (payload: UpdateProgressPayload) => void) => () => void
+  onUpdateDownloaded: (callback: (payload: UpdateInfoPayload) => void) => () => void
+  downloadUpdate: () => Promise<void>
+  installUpdate: () => Promise<void>
 }
 
 interface Window {

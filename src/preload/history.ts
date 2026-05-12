@@ -17,6 +17,11 @@ const CHANNELS = {
   HISTORY_SEED_QUEUE: 'photo:history-seeds',
   WIDGET_ACK_FORWARD: 'widget:ack-forward',
   POWER_RESUME: 'power:resume',
+  UPDATE_AVAILABLE: 'updater:update-available',
+  UPDATE_PROGRESS: 'updater:progress',
+  UPDATE_DOWNLOADED: 'updater:downloaded',
+  UPDATER_DOWNLOAD: 'updater:download',
+  UPDATER_INSTALL: 'updater:install',
 } as const
 
 contextBridge.exposeInMainWorld('nudgeHistory', {
@@ -65,4 +70,38 @@ contextBridge.exposeInMainWorld('nudgeHistory', {
     ipcRenderer.on(CHANNELS.POWER_RESUME, handler)
     return () => ipcRenderer.off(CHANNELS.POWER_RESUME, handler)
   },
+
+  onUpdateAvailable: (callback: (payload: { version: string }) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: { version: string }) =>
+      callback(payload)
+    ipcRenderer.on(CHANNELS.UPDATE_AVAILABLE, handler)
+    return () => ipcRenderer.off(CHANNELS.UPDATE_AVAILABLE, handler)
+  },
+
+  onUpdateProgress: (
+    callback: (payload: {
+      percent: number
+      bytesPerSecond: number
+      transferred: number
+      total: number
+    }) => void,
+  ) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      payload: { percent: number; bytesPerSecond: number; transferred: number; total: number },
+    ) => callback(payload)
+    ipcRenderer.on(CHANNELS.UPDATE_PROGRESS, handler)
+    return () => ipcRenderer.off(CHANNELS.UPDATE_PROGRESS, handler)
+  },
+
+  onUpdateDownloaded: (callback: (payload: { version: string }) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: { version: string }) =>
+      callback(payload)
+    ipcRenderer.on(CHANNELS.UPDATE_DOWNLOADED, handler)
+    return () => ipcRenderer.off(CHANNELS.UPDATE_DOWNLOADED, handler)
+  },
+
+  downloadUpdate: () => ipcRenderer.invoke(CHANNELS.UPDATER_DOWNLOAD) as Promise<void>,
+
+  installUpdate: () => ipcRenderer.invoke(CHANNELS.UPDATER_INSTALL) as Promise<void>,
 })

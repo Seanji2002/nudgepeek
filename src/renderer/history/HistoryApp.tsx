@@ -17,6 +17,7 @@ import Feed from './Feed.js'
 import Composer from './Composer.js'
 import PendingApproval from './PendingApproval.js'
 import AdminPanel from './AdminPanel.js'
+import UpdatePrompt from './UpdatePrompt.js'
 import styles from './styles.module.css'
 
 // Fetch unread photos for the caller, decrypt them, and push the batch to
@@ -378,22 +379,36 @@ export default function HistoryApp() {
   // ─── Render ───────────────────────────────────────────────────────────
   if (!authChecked) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.spinner} />
-      </div>
+      <>
+        <UpdatePrompt />
+        <div className={styles.loading}>
+          <div className={styles.spinner} />
+        </div>
+      </>
     )
   }
 
   if (!user) {
-    return <Login onSuccess={applySession} />
+    return (
+      <>
+        <UpdatePrompt />
+        <Login onSuccess={applySession} />
+      </>
+    )
   }
 
   if (!user.approved) {
-    return <PendingApproval onSignOut={handleSignOut} />
+    return (
+      <>
+        <UpdatePrompt />
+        <PendingApproval onSignOut={handleSignOut} />
+      </>
+    )
   }
 
   return (
     <div className={styles.app}>
+      <UpdatePrompt />
       <header className={styles.header}>
         <div className={styles.logo}>
           <span className={styles.logoMark}>N</span>

@@ -85,17 +85,44 @@ app.whenReady().then(() => {
   })
 
   // ─── Auto-update (production builds only) ───────────────────────────────
+  // The renderer drives the user flow: a popup asks before downloading and
+  // again before installing. autoInstallOnAppQuit stays off so quitting from
+  // the tray never silently restarts the user mid-action.
   if (app.isPackaged) {
-    autoUpdater.autoDownload = true
-    autoUpdater.autoInstallOnAppQuit = true
+    autoUpdater.autoDownload = false
+    autoUpdater.autoInstallOnAppQuit = false
+
     autoUpdater.on('error', (err) => console.error('[updater] error:', err))
-    autoUpdater.on('update-downloaded', () => {
-      console.log('[updater] update downloaded — will install on quit')
+
+    autoUpdater.on('update-available', (info) => {
+      getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.UPDATE_AVAILABLE, {
+        version: info.version,
+      })
     })
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error('[updater] checkForUpdatesAndNotify failed:', err)
+
+    autoUpdater.on('download-progress', (p) => {
+      getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.UPDATE_PROGRESS, {
+        percent: p.percent,
+        bytesPerSecond: p.bytesPerSecond,
+        transferred: p.transferred,
+        total: p.total,
+      })
+    })
+
+    autoUpdater.on('update-downloaded', (info) => {
+      getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.UPDATE_DOWNLOADED, {
+        version: info.version,
+      })
+    })
+
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[updater] checkForUpdates failed:', err)
     })
   }
+
+  // ─── IPC: updater (renderer drives the flow) ────────────────────────────
+  ipcMain.handle(IPC_INVOKE.UPDATER_DOWNLOAD, () => autoUpdater.downloadUpdate())
+  ipcMain.handle(IPC_INVOKE.UPDATER_INSTALL, () => autoUpdater.quitAndInstall())
 
   // ─── IPC: file dialog ───────────────────────────────────────────────────
   ipcMain.handle(IPC_INVOKE.DIALOG_OPEN_IMAGE, async (event) => {

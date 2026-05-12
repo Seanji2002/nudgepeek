@@ -11,6 +11,8 @@ export const IPC_INVOKE = {
   VAULT_GET: 'vault:get',
   VAULT_SET: 'vault:set',
   VAULT_CLEAR: 'vault:clear',
+  UPDATER_DOWNLOAD: 'updater:download',
+  UPDATER_INSTALL: 'updater:install',
 } as const
 
 export const IPC_FROM_RENDERER = {
@@ -28,6 +30,9 @@ export const IPC_TO_RENDERER = {
   PHOTO_SEED_QUEUE: 'photo:seed-queue',
   WIDGET_ACK_FORWARD: 'widget:ack-forward',
   POWER_RESUME: 'power:resume',
+  UPDATE_AVAILABLE: 'updater:update-available',
+  UPDATE_PROGRESS: 'updater:progress',
+  UPDATE_DOWNLOADED: 'updater:downloaded',
 } as const
 
 export interface StoredSession {
@@ -64,4 +69,15 @@ export interface SeedQueuePayload {
 
 export interface WidgetAckPayload {
   photoId: string
+}
+
+export interface UpdateInfoPayload {
+  version: string
+}
+
+export interface UpdateProgressPayload {
+  percent: number
+  bytesPerSecond: number
+  transferred: number
+  total: number
 }
