@@ -16,7 +16,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest",
+    "test:ci": "vitest run --coverage"
   },
   "devDependencies": {
     "@eslint/js": "^9",
@@ -24,16 +26,19 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5",
+    "@vitest/coverage-v8": "^4.1.5",
     "electron": "^42.0.0",
     "electron-builder": "^26",
     "electron-vite": "^5",
     "eslint": "^9",
     "eslint-plugin-react": "^7",
     "eslint-plugin-react-hooks": "^7",
+    "jsdom": "^29.1.1",
     "prettier": "^3",
     "typescript": "^6",
     "typescript-eslint": "^8",
-    "vite": "^7"
+    "vite": "^7",
+    "vitest": "^4.1.5"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2",
