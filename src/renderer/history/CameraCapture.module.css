@@ -56,6 +56,7 @@
 
 /* ─── Viewport (video / preview) ─────────────────────────────────────────── */
 .viewport {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
   background: #0a0a0f;
@@ -71,6 +72,34 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.previewHidden {
+  filter: blur(28px) saturate(0.6);
+  transform: scale(1.08); /* hide blurred edges */
+}
+
+/* ─── Hidden-mode preview overlay ────────────────────────────────────────── */
+.hiddenOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(13, 13, 22, 0.4);
+  color: rgba(255, 255, 255, 0.92);
+  pointer-events: none;
+  padding: 16px;
+  text-align: center;
+}
+
+.hiddenLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* ─── Error state ────────────────────────────────────────────────────────── */

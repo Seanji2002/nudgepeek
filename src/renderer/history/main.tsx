@@ -10,6 +10,10 @@ import {
 } from '../shared/supabase.js'
 import './global.css'
 
+if (navigator.userAgent.includes('Mac')) {
+  document.documentElement.dataset.platform = 'darwin'
+}
+
 type Phase = 'loading' | 'setup' | 'ready'
 
 function Bootstrap() {

@@ -85,35 +85,30 @@
 }
 
 .sendBtn {
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 13px;
-  background: #7c6af7;
-  border: none;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 7px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition:
     background 0.15s ease,
-    opacity 0.15s ease;
-  font-family: inherit;
-  white-space: nowrap;
+    color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .sendBtn:hover:not(:disabled) {
-  background: #8f7ffb;
-}
-
-.sendBtn:active:not(:disabled) {
-  background: #6959e0;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .sendBtn:disabled,
 .sendBtn.sending {
-  opacity: 0.65;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 

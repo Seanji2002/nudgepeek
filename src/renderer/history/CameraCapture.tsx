@@ -217,11 +217,33 @@ export default function CameraCapture({
           ) : phase === 'live' ? (
             <video ref={videoRef} className={styles.video} autoPlay muted playsInline />
           ) : (
-            <img
-              className={styles.preview}
-              src={previewUrl ?? undefined}
-              alt="Captured photo preview"
-            />
+            <>
+              <img
+                className={`${styles.preview} ${hideMode ? styles.previewHidden : ''}`}
+                src={previewUrl ?? undefined}
+                alt="Captured photo preview"
+              />
+              {hideMode && (
+                <div className={styles.hiddenOverlay} aria-hidden>
+                  <svg
+                    width="28"
+                    height="28"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.4 19.4 0 0 1 5.17-5.94" />
+                    <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.4 19.4 0 0 1-3.17 4.18" />
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                    <line x1="2" y1="2" x2="22" y2="22" />
+                  </svg>
+                  <span className={styles.hiddenLabel}>Hidden — recipient taps to reveal</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -263,7 +285,7 @@ export default function CameraCapture({
               </button>
               <button className={styles.primaryBtn} onClick={send} disabled={sending}>
                 {sending ? <span className={styles.btnSpinner} /> : null}
-                {sending ? 'Sending…' : hideMode ? 'Send Hidden' : 'Send'}
+                {sending ? 'Sending…' : 'Send'}
               </button>
             </>
           )}

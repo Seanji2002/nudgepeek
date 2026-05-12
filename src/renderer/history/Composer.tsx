@@ -136,10 +136,16 @@ export default function Composer({ userId }: Props) {
           className={`${styles.sendBtn} ${isSending ? styles.sending : ''}`}
           onClick={triggerPicker}
           disabled={isSending}
-          title={hideMode ? 'Send a hidden photo from file' : 'Send a photo from file'}
+          title={
+            isSending
+              ? 'Sending…'
+              : hideMode
+                ? 'Send a hidden photo from file'
+                : 'Send a photo from file'
+          }
+          aria-label={hideMode ? 'Send hidden photo from file' : 'Send photo from file'}
         >
           {isSending ? <span className={styles.btnSpinner} /> : <SendIcon />}
-          <span>{isSending ? 'Sending…' : hideMode ? 'Send Hidden' : 'Send Photo'}</span>
         </button>
       </div>
 

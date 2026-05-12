@@ -16,9 +16,13 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.015);
   flex-shrink: 0;
-  /* macOS hidden-inset title bar: leave space for traffic lights */
-  padding-top: max(12px, env(titlebar-area-height, 12px));
   -webkit-app-region: drag;
+}
+
+/* macOS hidden-inset title bar: the traffic lights sit ~6px from the top
+   of the window, so push the header content down below them. */
+:global([data-platform='darwin']) .header {
+  padding-top: 32px;
 }
 
 .logo {
