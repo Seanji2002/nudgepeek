@@ -14,6 +14,9 @@ const CHANNELS = {
   VAULT_GET: 'vault:get',
   VAULT_SET: 'vault:set',
   VAULT_CLEAR: 'vault:clear',
+  HISTORY_SEED_QUEUE: 'photo:history-seeds',
+  WIDGET_ACK_FORWARD: 'widget:ack-forward',
+  POWER_RESUME: 'power:resume',
 } as const
 
 contextBridge.exposeInMainWorld('nudgeHistory', {
@@ -47,4 +50,19 @@ contextBridge.exposeInMainWorld('nudgeHistory', {
   setVault: (key: Uint8Array) => ipcRenderer.invoke(CHANNELS.VAULT_SET, key) as Promise<void>,
 
   clearVault: () => ipcRenderer.invoke(CHANNELS.VAULT_CLEAR) as Promise<void>,
+
+  sendSeedQueue: (payload: unknown) => ipcRenderer.send(CHANNELS.HISTORY_SEED_QUEUE, payload),
+
+  onWidgetAck: (callback: (photoId: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: { photoId: string }) =>
+      callback(payload.photoId)
+    ipcRenderer.on(CHANNELS.WIDGET_ACK_FORWARD, handler)
+    return () => ipcRenderer.off(CHANNELS.WIDGET_ACK_FORWARD, handler)
+  },
+
+  onPowerResume: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on(CHANNELS.POWER_RESUME, handler)
+    return () => ipcRenderer.off(CHANNELS.POWER_RESUME, handler)
+  },
 })

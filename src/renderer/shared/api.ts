@@ -316,3 +316,42 @@ export async function rejectProfile(profileId: string): Promise<void> {
   const { error } = await supabase.rpc('reject_user', { target_id: profileId })
   if (error) throw error
 }
+
+export async function listUnreadPhotos(limit = 50): Promise<PhotoWithMeta[]> {
+  const { data, error } = await supabase.rpc('list_unread_photos', { p_limit: limit })
+  if (error) throw error
+  if (!data) return []
+
+  const rows = data as Array<{
+    id: string
+    sender_id: string
+    storage_path: string
+    hidden: boolean | null
+    created_at: string
+    sender_name: string | null
+  }>
+
+  return Promise.all(
+    rows.map(async (row) => {
+      const { data: urlData } = await supabase.storage
+        .from('photos')
+        .createSignedUrl(row.storage_path, 3600)
+      return {
+        id: row.id,
+        senderId: row.sender_id,
+        storagePath: row.storage_path,
+        hidden: row.hidden ?? false,
+        createdAt: row.created_at,
+        senderName: row.sender_name ?? 'Unknown',
+        signedUrl: urlData?.signedUrl ?? '',
+      } satisfies PhotoWithMeta
+    }),
+  )
+}
+
+export async function markPhotoRead(photoId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('photo_reads')
+    .upsert({ user_id: userId, photo_id: photoId }, { ignoreDuplicates: true })
+  if (error) throw error
+}

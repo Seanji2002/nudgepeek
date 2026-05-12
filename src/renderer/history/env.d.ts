@@ -13,6 +13,18 @@ interface IncomingPhotoPayload {
   fromCurrentUser: boolean
 }
 
+interface DisplayPhotoPayload {
+  photoId: string
+  photoBytes: Uint8Array
+  senderName: string
+  sentAt: string
+  hidden: boolean
+}
+
+interface SeedQueuePayload {
+  photos: DisplayPhotoPayload[]
+}
+
 interface StoredSupabaseConfig {
   url: string
   anonKey: string
@@ -32,6 +44,9 @@ interface NudgeHistoryApi {
   getVault: () => Promise<Uint8Array | null>
   setVault: (key: Uint8Array) => Promise<void>
   clearVault: () => Promise<void>
+  sendSeedQueue: (payload: SeedQueuePayload) => void
+  onWidgetAck: (callback: (photoId: string) => void) => () => void
+  onPowerResume: (callback: () => void) => () => void
 }
 
 interface Window {

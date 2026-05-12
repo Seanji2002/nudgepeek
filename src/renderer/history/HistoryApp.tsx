@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../shared/supabase.js'
-import { fetchAuthorName, getSignedUrl, listPhotos } from '../shared/api.js'
+import {
+  fetchAuthorName,
+  getSignedUrl,
+  listPhotos,
+  listUnreadPhotos,
+  markPhotoRead,
+} from '../shared/api.js'
 import { clearLocalVault, loadGroupKeyFromCache } from '../shared/vault.js'
 import { decryptPhoto } from '../shared/crypto.js'
 import { useHistoryStore, type AuthUser } from './store.js'
@@ -12,6 +18,33 @@ import Composer from './Composer.js'
 import PendingApproval from './PendingApproval.js'
 import AdminPanel from './AdminPanel.js'
 import styles from './styles.module.css'
+
+// Fetch unread photos for the caller, decrypt them, and push the batch to
+// the widget as a canonical seed of its queue. Called on signin, resume,
+// and visibility change. Best-effort — failures are logged, not surfaced.
+async function seedWidgetQueue(groupKey: Uint8Array): Promise<void> {
+  try {
+    const unread = await listUnreadPhotos(50)
+    const decrypted = await Promise.all(
+      unread.map(async (p) => {
+        const resp = await fetch(p.signedUrl)
+        if (!resp.ok) throw new Error(`fetch ${resp.status} for ${p.id}`)
+        const cipher = new Uint8Array(await resp.arrayBuffer())
+        const photoBytes = await decryptPhoto(cipher, groupKey)
+        return {
+          photoId: p.id,
+          photoBytes,
+          senderName: p.senderName,
+          sentAt: p.createdAt,
+          hidden: p.hidden,
+        }
+      }),
+    )
+    window.nudgeHistory.sendSeedQueue({ photos: decrypted })
+  } catch (err) {
+    console.error('[seedWidgetQueue] failed:', err)
+  }
+}
 
 export default function HistoryApp() {
   const { user, setUser, setGroupKey, setPhotos, prependPhoto, setLoading } = useHistoryStore()
@@ -81,6 +114,10 @@ export default function HistoryApp() {
       } finally {
         setLoading(false)
       }
+
+      // Hydrate the widget's unread queue. This is the path that makes
+      // photos sent while the laptop was closed show up after wake.
+      void seedWidgetQueue(key)
     },
     [setUser, setGroupKey, setPhotos, setLoading],
   )
@@ -297,6 +334,45 @@ export default function HistoryApp() {
     return () => {
       supabase.removeChannel(channel)
     }
+  }, [user?.id])
+
+  // ─── Re-seed widget queue on power-resume / window-visible ──────────
+  // Both signals can fire when the user comes back to the app; debounce so
+  // a quick resume+focus combo only triggers a single fetch.
+  useEffect(() => {
+    if (!user?.approved) return
+
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const trigger = () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        const key = useHistoryStore.getState().groupKey
+        if (key) void seedWidgetQueue(key)
+      }, 2000)
+    }
+
+    const removeResume = window.nudgeHistory.onPowerResume(trigger)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') trigger()
+    }
+    document.addEventListener('visibilitychange', onVis)
+
+    return () => {
+      removeResume()
+      document.removeEventListener('visibilitychange', onVis)
+      if (timer) clearTimeout(timer)
+    }
+  }, [user?.id, user?.approved])
+
+  // ─── Widget ack → mark photo read in the DB ───────────────────────────
+  useEffect(() => {
+    if (!user?.id) return
+    const remove = window.nudgeHistory.onWidgetAck((photoId) => {
+      markPhotoRead(photoId, user.id).catch((err) => {
+        console.error('[ack] markPhotoRead failed for', photoId, err)
+      })
+    })
+    return remove
   }, [user?.id])
 
   // ─── Render ───────────────────────────────────────────────────────────

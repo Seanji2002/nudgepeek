@@ -109,6 +109,68 @@ create table public.vault_grants (
 );
 
 
+-- ── photo_reads ─────────────────────────────────────────────────────────────
+-- Per-user "I've seen this photo" marker. The widget shows the oldest unread
+-- photo; clicking acks it and the next one slides in. Cascade through photo_id
+-- means the daily cleanup cron (delete_old_photos) sweeps ack rows too.
+create table public.photo_reads (
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  photo_id  uuid not null references public.photos(id)   on delete cascade,
+  read_at   timestamptz not null default now(),
+  primary key (user_id, photo_id)
+);
+
+-- Auto-mark the sender's own photo as read on insert — you don't need to
+-- ack your own message.
+create or replace function public.auto_ack_own_photo()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.photo_reads (user_id, photo_id)
+  values (new.sender_id, new.id)
+  on conflict do nothing;
+  return new;
+end;
+$$;
+
+create trigger photos_auto_ack
+  after insert on public.photos
+  for each row execute procedure public.auto_ack_own_photo();
+
+-- Return the caller's unread photos (oldest first), with sender display name
+-- joined in. security invoker so the photos/profiles RLS policies still apply.
+create or replace function public.list_unread_photos(p_limit int default 50)
+returns table (
+  id           uuid,
+  sender_id    uuid,
+  storage_path text,
+  hidden       boolean,
+  created_at   timestamptz,
+  sender_name  text
+)
+language sql
+security invoker
+stable
+set search_path = public
+as $$
+  select p.id, p.sender_id, p.storage_path, p.hidden, p.created_at,
+         coalesce(pr.display_name, 'Unknown') as sender_name
+    from public.photos p
+    left join public.profiles pr on pr.id = p.sender_id
+   where not exists (
+     select 1 from public.photo_reads r
+      where r.photo_id = p.id and r.user_id = auth.uid()
+   )
+   order by p.created_at asc
+   limit p_limit;
+$$;
+
+grant execute on function public.list_unread_photos(int) to authenticated;
+
+
 -- ── helpers ─────────────────────────────────────────────────────────────────
 -- Security-definer helper so RLS policies can ask "is the caller an admin?"
 -- without recursing through profile RLS.
@@ -280,6 +342,21 @@ create policy "vault_grants: admin update"
   with check (public.is_admin());
 
 
+-- ── RLS: photo_reads ────────────────────────────────────────────────────────
+alter table public.photo_reads enable row level security;
+
+-- Each user reads only their own ack rows.
+create policy "photo_reads: read own"
+  on public.photo_reads for select
+  using (auth.uid() = user_id);
+
+-- Each user inserts only their own ack rows. (The auto-ack trigger runs as
+-- the function's definer and bypasses RLS, so it stays unaffected.)
+create policy "photo_reads: insert own"
+  on public.photo_reads for insert
+  with check (auth.uid() = user_id);
+
+
 -- ── Realtime ────────────────────────────────────────────────────────────────
 alter publication supabase_realtime add table public.photos;
 alter publication supabase_realtime add table public.comments;
@@ -432,16 +509,20 @@ drop policy if exists "storage photos: insert own folder"  on storage.objects;
 
 -- 3. Drop the app's tables. CASCADE drops their RLS policies, indexes,
 --    triggers, and removes them from realtime publications.
+drop table if exists public.photo_reads  cascade;
 drop table if exists public.vault_grants cascade;
 drop table if exists public.comments     cascade;
 drop table if exists public.photos       cascade;
 drop table if exists public.profiles     cascade;
 
 -- 4. Drop helper functions and the auto-profile trigger.
-drop function if exists public.handle_new_user()    cascade;
-drop function if exists public.is_admin()           cascade;
-drop function if exists public.reject_user(uuid)    cascade;
-drop function if exists public.delete_old_photos()  cascade;
+drop function if exists public.handle_new_user()         cascade;
+drop function if exists public.is_admin()                cascade;
+drop function if exists public.reject_user(uuid)         cascade;
+drop function if exists public.delete_old_photos()       cascade;
+drop function if exists public.auto_ack_own_photo()      cascade;
+drop function if exists public.has_any_vault_grant()     cascade;
+drop function if exists public.list_unread_photos(int)   cascade;
 
 -- 5. Delete every auth user. The SQL editor's role can touch auth.users.
 delete from auth.users;

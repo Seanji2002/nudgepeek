@@ -18,11 +18,16 @@ export const IPC_FROM_RENDERER = {
   PHOTO_INCOMING: 'photo:incoming',
   WINDOW_HIDE_WIDGET: 'window:hide-widget',
   AUTOLAUNCH_SET: 'autolaunch:set',
+  WIDGET_ACK: 'widget:ack',
+  HISTORY_SEED_QUEUE: 'photo:history-seeds',
 } as const
 
 export const IPC_TO_RENDERER = {
   PHOTO_DISPLAY: 'photo:display',
   AUTH_FORCE_SIGNOUT: 'auth:force-signout',
+  PHOTO_SEED_QUEUE: 'photo:seed-queue',
+  WIDGET_ACK_FORWARD: 'widget:ack-forward',
+  POWER_RESUME: 'power:resume',
 } as const
 
 export interface StoredSession {
@@ -51,4 +56,12 @@ export interface DisplayPhotoPayload {
   senderName: string
   sentAt: string
   hidden: boolean
+}
+
+export interface SeedQueuePayload {
+  photos: DisplayPhotoPayload[]
+}
+
+export interface WidgetAckPayload {
+  photoId: string
 }

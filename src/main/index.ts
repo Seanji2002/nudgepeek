@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session, powerMonitor } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { initPrefs, getPref } from './store.js'
 import { initSessionStorage, saveSession, loadSession, clearSession } from './session.js'
@@ -19,7 +19,7 @@ import {
 import { createHistoryWindow, getHistoryWindow, showHistoryWindow } from './windows/history.js'
 import { createTray, setTrayLoggedIn } from './tray.js'
 import { setAutoLaunch, getAutoLaunchEnabled } from './autoLaunch.js'
-import { showPhotoNotification } from './notifications.js'
+import { showPhotoNotification, showSummaryNotification } from './notifications.js'
 import {
   IPC_FROM_RENDERER,
   IPC_INVOKE,
@@ -28,6 +28,8 @@ import {
   type StoredSupabaseConfig,
   type IncomingPhotoPayload,
   type DisplayPhotoPayload,
+  type SeedQueuePayload,
+  type WidgetAckPayload,
 } from './ipc.js'
 
 // ─── Single-instance lock ────────────────────────────────────────────────────
@@ -125,7 +127,11 @@ app.whenReady().then(() => {
   })
 
   // ─── IPC: incoming photo (history renderer → main → widget + notification)
+  // Self-photos skip the widget entirely (the DB auto-acks them via trigger,
+  // so they'd never appear in the unread queue anyway).
   ipcMain.on(IPC_FROM_RENDERER.PHOTO_INCOMING, (_e, payload: IncomingPhotoPayload) => {
+    if (payload.fromCurrentUser) return
+
     const displayPayload: DisplayPhotoPayload = {
       photoId: payload.photoId,
       photoBytes: payload.photoBytes,
@@ -137,12 +143,53 @@ app.whenReady().then(() => {
 
     if (!getWidgetWindow()?.isVisible()) showWidget()
 
-    if (!payload.fromCurrentUser) {
-      showPhotoNotification(payload.senderName, payload.hidden, () => {
+    showPhotoNotification(payload.senderName, payload.hidden, () => {
+      showWidget()
+      getWidgetWindow()?.focus()
+    })
+  })
+
+  // ─── IPC: history → main → widget (bulk seed of unread queue) ───────────
+  ipcMain.on(IPC_FROM_RENDERER.HISTORY_SEED_QUEUE, (_e, payload: SeedQueuePayload) => {
+    const photos = payload?.photos ?? []
+    getWidgetWindow()?.webContents.send(IPC_TO_RENDERER.PHOTO_SEED_QUEUE, { photos })
+
+    if (photos.length === 0) return
+
+    if (!getWidgetWindow()?.isVisible()) showWidget()
+
+    if (photos.length === 1) {
+      showPhotoNotification(photos[0].senderName, photos[0].hidden, () => {
         showWidget()
         getWidgetWindow()?.focus()
       })
+    } else {
+      showSummaryNotification(
+        photos.length,
+        photos.map((p) => p.senderName),
+        () => {
+          showWidget()
+          getWidgetWindow()?.focus()
+        },
+      )
     }
+  })
+
+  // ─── IPC: widget → main → history (ack a photo) ─────────────────────────
+  ipcMain.on(IPC_FROM_RENDERER.WIDGET_ACK, (_e, payload: WidgetAckPayload) => {
+    if (!payload?.photoId) return
+    getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.WIDGET_ACK_FORWARD, payload)
+  })
+
+  // ─── Power resume → tell history to re-seed the widget queue ────────────
+  // macOS can fire 'resume' multiple times in quick succession; 1s leading
+  // debounce avoids hammering history.
+  let lastResumeAt = 0
+  powerMonitor.on('resume', () => {
+    const now = Date.now()
+    if (now - lastResumeAt < 1000) return
+    lastResumeAt = now
+    getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.POWER_RESUME)
   })
 
   // ─── IPC: widget close button ───────────────────────────────────────────

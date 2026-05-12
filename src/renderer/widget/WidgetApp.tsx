@@ -51,36 +51,61 @@ function EyeIcon() {
 }
 
 export default function WidgetApp() {
-  const { currentPhoto, prevPhoto, showPrev, revealedId, setPhoto, clearPrev, revealCurrent } =
-    useWidgetStore()
+  const {
+    queue,
+    currentPhoto,
+    prevPhoto,
+    showPrev,
+    revealedId,
+    enqueue,
+    seedQueue,
+    ackCurrent,
+    clearPrev,
+    revealCurrent,
+  } = useWidgetStore()
   const prevTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const api = window.nudgeWidget
     if (!api) return
-    const remove = api.onPhotoDisplay((payload) => {
+
+    function payloadToFrame(payload: DisplayPhotoPayload) {
       const blob = new Blob([payload.photoBytes as BlobPart], { type: 'image/jpeg' })
-      const displayUrl = URL.createObjectURL(blob)
-      setPhoto({
+      return {
         photoId: payload.photoId,
-        displayUrl,
+        displayUrl: URL.createObjectURL(blob),
         senderName: payload.senderName,
         sentAt: payload.sentAt,
         hidden: payload.hidden,
-      })
-      if (prevTimerRef.current) clearTimeout(prevTimerRef.current)
-      prevTimerRef.current = setTimeout(() => clearPrev(), 450)
+      }
+    }
+
+    const removeIncoming = api.onPhotoDisplay((payload) => {
+      enqueue(payloadToFrame(payload))
     })
+
+    const removeSeed = api.onSeedQueue((payload) => {
+      seedQueue(payload.photos.map(payloadToFrame))
+    })
+
     return () => {
-      remove()
+      removeIncoming()
+      removeSeed()
       if (prevTimerRef.current) clearTimeout(prevTimerRef.current)
     }
-  }, [setPhoto, clearPrev])
+  }, [enqueue, seedQueue])
 
   const handleClose = () => window.nudgeWidget?.hideWidget()
 
+  const handleAck = () => {
+    ackCurrent()
+    if (prevTimerRef.current) clearTimeout(prevTimerRef.current)
+    prevTimerRef.current = setTimeout(() => clearPrev(), 450)
+  }
+
   const currentHidden = currentPhoto ? isFrameHidden(currentPhoto, revealedId) : false
   const prevHidden = prevPhoto ? isFrameHidden(prevPhoto, revealedId) : false
+  const remaining = Math.max(0, queue.length - 1)
 
   return (
     <div className={styles.container}>
@@ -100,13 +125,19 @@ export default function WidgetApp() {
             />
           )}
 
-          {/* Current photo fades in */}
+          {/* Current photo fades in. Acts as the ack button (whole photo is
+              clickable). The reveal layer below absorbs the click first for
+              hidden photos. */}
           <img
             key={`cur-${currentPhoto.photoId}`}
-            className={`${styles.photo} ${styles.photoIn} ${currentHidden ? styles.photoHidden : ''}`}
+            className={`${styles.photo} ${styles.photoIn} ${styles.photoClickable} ${currentHidden ? styles.photoHidden : ''}`}
             src={currentPhoto.displayUrl}
             alt={`Photo from ${currentPhoto.senderName}`}
             draggable={false}
+            onClick={handleAck}
+            role="button"
+            aria-label="Mark as read and show next"
+            title="Click to mark as read"
           />
 
           {/* Reveal layer — covers the photo area, sits below close button */}
@@ -121,6 +152,8 @@ export default function WidgetApp() {
               <span className={styles.revealLabel}>Hidden — click to reveal</span>
             </button>
           )}
+
+          {remaining > 0 && <div className={styles.queueBadge}>+{remaining} more</div>}
 
           {/* Top gradient so close button is always visible */}
           <div className={styles.topGradient} />
