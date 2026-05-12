@@ -4,6 +4,8 @@ A lightweight, personal desktop app for intimate photo sharing between a small, 
 
 One person sends a photo; it silently appears on everyone else's desktop in a small floating window.
 
+> Ready to install or run a group? See [`SETUP.md`](SETUP.md).
+
 ---
 
 ## How it works
@@ -29,61 +31,6 @@ Photos are encrypted client-side before they ever leave your machine. A breach o
 - **Forgotten password = lost access.** Nobody — not the host, not Supabase — can recover your private key. The host deletes the account, you sign up again, and the host re-approves you. Past photos stay readable for every other member.
 
 What an attacker who exfiltrated the entire Supabase project would have to do to read a single photo: brute-force one member's password through Argon2id (interactive cost), use the derived key to unwrap that member's private key, then unseal the group key from their `vault_grants` row. There is no shortcut on the server side.
-
----
-
-## Install
-
-Pre-built installers are on the [GitHub Releases page](https://github.com/Seanji2002/nudgepeek/releases).
-
-- **macOS** — download the `.dmg` (universal: works on Intel and Apple Silicon)
-- **Windows** — download the `.exe` (NSIS installer, x64)
-- **Linux** — download the `.AppImage`, then `chmod +x NudgePeek-*.AppImage` and run it. On Ubuntu 22.04+ you may need `sudo apt install libfuse2` first.
-
-### macOS first-run
-
-Builds are unsigned, so macOS shows: _"NudgePeek can't be opened because Apple cannot check it for malicious software."_
-
-Workaround: right-click the app in Finder → **Open** → **Open**. You only need to do this once per install.
-
-### Windows first-run
-
-SmartScreen shows: _"Windows protected your PC."_ Click **More info** → **Run anyway**. Once.
-
-### Auto-updates
-
-Once installed, NudgePeek checks GitHub Releases on each launch. When a newer version is published, it downloads in the background and installs the next time you quit the app.
-
----
-
-## First launch
-
-1. NudgePeek shows a **Connect your Supabase project** screen.
-2. Paste the **Project URL** and **anon key** that the host of your group sent you.
-3. On the next screen, **Sign up** with a name and password — no email needed. Then wait for the host to approve your account; once approved, sign in with the same name and password.
-
-Credentials are stored encrypted in the OS keychain, so you only enter them once per machine. To switch to a different project later, click **Use a different project** on the login screen.
-
-Photos and comments older than **3 days** are deleted automatically.
-
----
-
-## Setting up a group
-
-One person — the **host** — runs a free Supabase project for the group. Everyone else points NudgePeek at it and signs up from inside the app.
-
-**Host (one-time):**
-
-1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
-2. Follow [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) to create the schema, RLS policies, storage bucket, daily auto-cleanup job, and bootstrap your own admin account.
-3. Share the **Project URL** and **anon key** with the group.
-
-**Each member:**
-
-1. Install NudgePeek.
-2. Paste the Project URL and anon key on first launch.
-3. Click **Sign up** and pick a name + password.
-4. The host approves them from the in-app **Admin** button. After that, they sign in normally.
 
 ---
 
