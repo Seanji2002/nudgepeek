@@ -9,6 +9,7 @@ import styles from './Login.module.css'
 
 interface Props {
   onSuccess: (session: Session) => Promise<void>
+  onSwitchProject: () => Promise<void>
 }
 
 type Mode = 'signin' | 'signup'
@@ -23,24 +24,13 @@ function projectHostname(): string | null {
   }
 }
 
-async function switchProject() {
-  try {
-    await window.nudgeHistory.clearStoredSupabaseConfig()
-  } catch (err) {
-    console.error('[login] Failed to clear stored Supabase config:', err)
-    return
-  }
-  sessionStorage.setItem('np-force-setup', '1')
-  location.reload()
-}
-
 function humaniseAuthError(raw: string): string {
   if (/User already registered/i.test(raw)) return 'That name is already taken — pick another.'
   if (/Invalid login credentials/i.test(raw)) return 'Wrong name or password.'
   return raw
 }
 
-export default function Login({ onSuccess }: Props) {
+export default function Login({ onSuccess, onSwitchProject }: Props) {
   const [mode, setMode] = useState<Mode>('signin')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
@@ -48,7 +38,22 @@ export default function Login({ onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [switching, setSwitching] = useState(false)
   const host = projectHostname()
+
+  async function handleSwitchProject() {
+    if (switching) return
+    setSwitching(true)
+    try {
+      await onSwitchProject()
+    } catch (err) {
+      console.error('[login] switch project failed:', err)
+      setError('Could not switch project — try again.')
+      setSwitching(false)
+    }
+    // If it succeeded, this component unmounts as Bootstrap re-renders the
+    // setup screen, so we don't need to clear `switching`.
+  }
 
   function switchMode(next: Mode) {
     if (next === mode) return
@@ -229,8 +234,13 @@ export default function Login({ onSuccess }: Props) {
               Connected to {host}
             </span>
           )}
-          <button type="button" className={styles.footerLink} onClick={switchProject}>
-            Use a different project
+          <button
+            type="button"
+            className={styles.footerLink}
+            onClick={handleSwitchProject}
+            disabled={switching}
+          >
+            {switching ? 'Switching…' : 'Use a different project'}
           </button>
         </div>
       </div>

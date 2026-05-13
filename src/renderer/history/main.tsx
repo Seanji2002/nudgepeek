@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import HistoryApp from './HistoryApp.js'
 import SupabaseSetup from './SupabaseSetup.js'
@@ -7,6 +7,7 @@ import {
   envSupabaseUrl,
   initSupabase,
   isSupabaseInitialized,
+  supabase,
 } from '../shared/supabase.js'
 import './global.css'
 
@@ -22,13 +23,6 @@ function Bootstrap() {
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const forceSetup = sessionStorage.getItem('np-force-setup') === '1'
-      if (forceSetup) {
-        sessionStorage.removeItem('np-force-setup')
-        if (!cancelled) setPhase('setup')
-        return
-      }
-
       try {
         const stored = await window.nudgeHistory.getStoredSupabaseConfig()
         if (cancelled) return
@@ -53,6 +47,26 @@ function Bootstrap() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // "Use a different project" handler. Sign out of the current Supabase
+  // session (clears its localStorage tokens), wipe the stored config/session/
+  // vault in main, and re-render the setup screen in place — no page reload.
+  const handleSwitchProject = useCallback(async () => {
+    if (isSupabaseInitialized()) {
+      try {
+        await supabase.auth.signOut()
+      } catch (err) {
+        console.warn('[bootstrap] supabase signOut during switch failed:', err)
+      }
+    }
+    try {
+      await window.nudgeHistory.clearStoredSupabaseConfig()
+    } catch (err) {
+      console.error('[bootstrap] clearStoredSupabaseConfig failed:', err)
+      throw err
+    }
+    setPhase('setup')
   }, [])
 
   if (phase === 'loading') {
@@ -85,7 +99,7 @@ function Bootstrap() {
     return <SupabaseSetup onReady={() => setPhase('ready')} />
   }
 
-  return <HistoryApp />
+  return <HistoryApp onSwitchProject={handleSwitchProject} />
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

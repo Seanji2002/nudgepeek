@@ -1,10 +1,12 @@
 import React, { FormEvent, useState } from 'react'
-import { initSupabase } from '../shared/supabase.js'
+import { envSupabaseAnonKey, envSupabaseUrl, initSupabase } from '../shared/supabase.js'
 import styles from './SupabaseSetup.module.css'
 
 interface Props {
   onReady: () => void
 }
+
+const hasEnvDefaults = Boolean(envSupabaseUrl && envSupabaseAnonKey)
 
 function isValidUrl(value: string): boolean {
   try {
@@ -48,6 +50,13 @@ export default function SupabaseSetup({ onReady }: Props) {
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleUseDefault() {
+    if (!hasEnvDefaults || saving) return
+    setError(null)
+    initSupabase(envSupabaseUrl!, envSupabaseAnonKey!)
+    onReady()
   }
 
   return (
@@ -118,6 +127,17 @@ export default function SupabaseSetup({ onReady }: Props) {
           >
             {saving ? <span className={styles.btnSpinner} /> : 'Connect'}
           </button>
+
+          {hasEnvDefaults && (
+            <button
+              type="button"
+              className={styles.defaultBtn}
+              onClick={handleUseDefault}
+              disabled={saving}
+            >
+              Use default credentials
+            </button>
+          )}
         </form>
       </div>
     </div>

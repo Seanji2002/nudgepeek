@@ -47,7 +47,11 @@ async function seedWidgetQueue(groupKey: Uint8Array): Promise<void> {
   }
 }
 
-export default function HistoryApp() {
+interface HistoryAppProps {
+  onSwitchProject: () => Promise<void>
+}
+
+export default function HistoryApp({ onSwitchProject }: HistoryAppProps) {
   const { user, setUser, setGroupKey, setPhotos, prependPhoto, setLoading } = useHistoryStore()
   const [authChecked, setAuthChecked] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
@@ -392,7 +396,7 @@ export default function HistoryApp() {
     return (
       <>
         <UpdatePrompt />
-        <Login onSuccess={applySession} />
+        <Login onSuccess={applySession} onSwitchProject={onSwitchProject} />
       </>
     )
   }
