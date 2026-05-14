@@ -23,12 +23,20 @@ publish:
 
 mac:
   icon: resources/icon.png
+  category: public.app-category.social-networking
+  # Ad-hoc signing (identity '-') — no Apple Developer ID needed. The build
+  # is unsigned in the "not from a known developer" sense, but Gatekeeper
+  # sees a valid signature and shows the normal "Open Anyway" button in
+  # System Settings → Privacy & Security instead of the harsher "App is
+  # damaged" dialog that completely unsigned apps trigger on macOS 14+.
+  identity: '-'
+  hardenedRuntime: false
+  gatekeeperAssess: false
   target:
     - target: dmg
       arch:
         - x64
         - arm64
-  category: public.app-category.social-networking
 
 win:
   icon: resources/icon.png
