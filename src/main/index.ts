@@ -198,7 +198,13 @@ app.whenReady().then(() => {
     if (session) {
       saveSession(session)
       setTrayLoggedIn(true)
-      if (!getWidgetWindow()?.isVisible()) showWidget()
+      // Only auto-show the widget when the user hasn't explicitly hidden it.
+      // Supabase fires session updates on every token refresh (~hourly), and
+      // we don't want those background refreshes to keep popping the widget
+      // back open after the user has closed it.
+      if (!getWidgetWindow()?.isVisible() && (getPref('widgetVisible') ?? true)) {
+        showWidget()
+      }
     } else {
       clearSession()
       clearAllGroupKeys()

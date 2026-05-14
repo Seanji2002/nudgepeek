@@ -209,26 +209,34 @@ export default function HistoryApp({ onSwitchProject }: HistoryAppProps) {
     let cancelled = false
 
     async function init() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
-      if (session && !cancelled) {
-        await applySession(session)
-      } else if (!session) {
-        const stored = await window.nudgeHistory.getStoredSession()
-        if (stored && !cancelled) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: stored.accessToken,
-            refresh_token: stored.refreshToken,
-          })
-          if (!error && data.session && !cancelled) {
-            await applySession(data.session)
+        if (session && !cancelled) {
+          await applySession(session)
+        } else if (!session) {
+          const stored = await window.nudgeHistory.getStoredSession()
+          if (stored && !cancelled) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: stored.accessToken,
+              refresh_token: stored.refreshToken,
+            })
+            if (!error && data.session && !cancelled) {
+              await applySession(data.session)
+            }
           }
         }
+      } catch (err) {
+        // If anything in the restore path throws (stale token, schema
+        // mismatch, network), don't strand the user on the loading spinner.
+        // Surface the failure to the console and fall through to the Login
+        // screen so they can sign in again.
+        console.error('[history] session restore failed:', err)
+      } finally {
+        if (!cancelled) setAuthChecked(true)
       }
-
-      if (!cancelled) setAuthChecked(true)
     }
 
     init()
