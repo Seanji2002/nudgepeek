@@ -9,8 +9,8 @@ app.once('before-quit', () => {
   appIsQuitting = true
 })
 
-const W = 300
-const H = 340
+const W = 340
+const H = 380
 const EDGE_PAD = 4
 
 function clampToWorkArea(x: number, y: number): { x: number; y: number } {
