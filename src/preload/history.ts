@@ -22,6 +22,7 @@ const CHANNELS = {
   UPDATE_AVAILABLE: 'updater:update-available',
   UPDATE_PROGRESS: 'updater:progress',
   UPDATE_DOWNLOADED: 'updater:downloaded',
+  UPDATE_ERROR: 'updater:error',
   UPDATER_DOWNLOAD: 'updater:download',
   UPDATER_INSTALL: 'updater:install',
 } as const
@@ -109,6 +110,13 @@ contextBridge.exposeInMainWorld('nudgeHistory', {
       callback(payload)
     ipcRenderer.on(CHANNELS.UPDATE_DOWNLOADED, handler)
     return () => ipcRenderer.off(CHANNELS.UPDATE_DOWNLOADED, handler)
+  },
+
+  onUpdateError: (callback: (payload: { message: string }) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: { message: string }) =>
+      callback(payload)
+    ipcRenderer.on(CHANNELS.UPDATE_ERROR, handler)
+    return () => ipcRenderer.off(CHANNELS.UPDATE_ERROR, handler)
   },
 
   downloadUpdate: () => ipcRenderer.invoke(CHANNELS.UPDATER_DOWNLOAD) as Promise<void>,

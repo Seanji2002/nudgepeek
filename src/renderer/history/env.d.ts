@@ -67,6 +67,7 @@ interface NudgeHistoryApi {
   onUpdateAvailable: (callback: (payload: UpdateInfoPayload) => void) => () => void
   onUpdateProgress: (callback: (payload: UpdateProgressPayload) => void) => () => void
   onUpdateDownloaded: (callback: (payload: UpdateInfoPayload) => void) => () => void
+  onUpdateError: (callback: (payload: { message: string }) => void) => () => void
   downloadUpdate: () => Promise<void>
   installUpdate: () => Promise<void>
 }

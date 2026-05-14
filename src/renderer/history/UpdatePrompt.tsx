@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import styles from './UpdatePrompt.module.css'
 
-type Phase = 'idle' | 'available' | 'downloading' | 'downloaded' | 'dismissed'
+type Phase = 'idle' | 'available' | 'downloading' | 'downloaded' | 'dismissed' | 'error'
+
+const RELEASES_URL = 'https://github.com/Seanji2002/nudgepeek/releases/latest'
 
 function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '0 MB'
@@ -32,6 +34,7 @@ export default function UpdatePrompt() {
   const [percent, setPercent] = useState<number>(0)
   const [transferred, setTransferred] = useState<number>(0)
   const [total, setTotal] = useState<number>(0)
+  const [errorMessage, setErrorMessage] = useState<string>('')
 
   useEffect(() => {
     const api = window.nudgeHistory
@@ -56,10 +59,23 @@ export default function UpdatePrompt() {
       setPhase('downloaded')
     })
 
+    const removeError = api.onUpdateError((payload) => {
+      // Only react if we're currently in a flow — the tray "Check for
+      // updates" path has its own notification for failures.
+      setPhase((p) => {
+        if (p === 'downloading' || p === 'available' || p === 'downloaded') {
+          setErrorMessage(payload.message)
+          return 'error'
+        }
+        return p
+      })
+    })
+
     return () => {
       removeAvailable()
       removeProgress()
       removeDownloaded()
+      removeError()
     }
   }, [])
 
@@ -126,8 +142,7 @@ export default function UpdatePrompt() {
       </>
     )
     actions = null
-  } else {
-    // downloaded
+  } else if (phase === 'downloaded') {
     title = 'Update ready'
     body = (
       <p className={styles.versionLine}>
@@ -143,6 +158,37 @@ export default function UpdatePrompt() {
         <button type="button" className={styles.primaryBtn} onClick={handleInstall}>
           Install &amp; Restart
         </button>
+      </>
+    )
+  } else {
+    // error
+    title = "Couldn't apply update"
+    body = (
+      <>
+        <p className={styles.versionLine}>
+          The auto-updater hit a problem trying to install version{' '}
+          <span className={styles.versionTag}>{version || 'latest'}</span>.
+        </p>
+        <p className={styles.errorMsg}>{errorMessage}</p>
+        <p className={styles.versionLine}>
+          You can download the new version directly from GitHub and reinstall it manually.
+        </p>
+      </>
+    )
+    actions = (
+      <>
+        <button type="button" className={styles.linkBtn} onClick={handleDismiss}>
+          Dismiss
+        </button>
+        <a
+          className={styles.primaryBtn}
+          href={RELEASES_URL}
+          target="_blank"
+          rel="noreferrer"
+          onClick={handleDismiss}
+        >
+          Open releases
+        </a>
       </>
     )
   }

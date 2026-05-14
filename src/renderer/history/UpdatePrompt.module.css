@@ -124,6 +124,24 @@
   cursor: pointer;
   font-family: inherit;
   transition: background 0.15s ease;
+  /* Allow <a> to use the same class without inheriting underline / default
+   * inline alignment. */
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.errorMsg {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  border-radius: 6px;
+  color: #fda5a5;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-word;
 }
 
 .primaryBtn:hover:not(:disabled) {

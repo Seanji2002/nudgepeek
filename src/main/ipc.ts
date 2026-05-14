@@ -35,6 +35,7 @@ export const IPC_TO_RENDERER = {
   UPDATE_AVAILABLE: 'updater:update-available',
   UPDATE_PROGRESS: 'updater:progress',
   UPDATE_DOWNLOADED: 'updater:downloaded',
+  UPDATE_ERROR: 'updater:error',
 } as const
 
 export interface StoredSession {
@@ -86,4 +87,8 @@ export interface UpdateProgressPayload {
   bytesPerSecond: number
   transferred: number
   total: number
+}
+
+export interface UpdateErrorPayload {
+  message: string
 }

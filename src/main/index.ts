@@ -120,6 +120,11 @@ app.whenReady().then(() => {
         manualCheckPending = false
         showInfoNotification("Couldn't check for updates", err.message || 'Unknown error.')
       }
+      // Always forward to the renderer so any open UpdatePrompt can surface
+      // the failure (download / install errors land here).
+      getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.UPDATE_ERROR, {
+        message: err.message || String(err),
+      })
     })
 
     autoUpdater.on('update-available', (info) => {
