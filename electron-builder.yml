@@ -11,13 +11,11 @@ files:
   - package.json
   - '!**/*.map'
 
-# Copy assets the runtime needs (tray icons) into the packaged app so the
-# main process can load them via `process.resourcesPath` after install.
+# Copy the tray icon into the packaged app so the main process can load
+# it via `process.resourcesPath` after install.
 extraResources:
-  - from: resources/trayTemplate.png
-    to: trayTemplate.png
-  - from: resources/trayTemplate@2x.png
-    to: trayTemplate@2x.png
+  - from: resources/icon.png
+    to: icon.png
 
 extraMetadata:
   main: out/main/index.js

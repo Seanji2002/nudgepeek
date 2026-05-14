@@ -2,15 +2,11 @@ import { app, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { getAutoLaunchEnabled } from './autoLaunch.js'
 
-// Dev: `__dirname` resolves to `out/main`, so the icon sits at
-// `../../resources/`. Packaged: electron-builder copies the icon into the
-// app bundle's `Contents/Resources/` directory, exposed via
-// `process.resourcesPath`.
 function resolveTrayIconPath(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'trayTemplate.png')
+    return join(process.resourcesPath, 'icon.png')
   }
-  return join(__dirname, '../../resources/trayTemplate.png')
+  return join(__dirname, '../../resources/icon.png')
 }
 
 export interface TrayCallbacks {
@@ -33,9 +29,7 @@ export function createTray(cb: TrayCallbacks): Tray {
   try {
     const iconPath = resolveTrayIconPath()
     icon = nativeImage.createFromPath(iconPath)
-    if (process.platform !== 'darwin') {
-      icon = icon.resize({ width: 16, height: 16 })
-    }
+    icon = icon.resize({ width: process.platform === 'darwin' ? 22 : 16 })
   } catch (err) {
     console.error('[tray] Failed to load tray icon:', err)
     // leave icon empty — app still works, just no tray icon image
