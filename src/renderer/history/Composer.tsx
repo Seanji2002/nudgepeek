@@ -6,6 +6,7 @@ import styles from './Composer.module.css'
 
 interface Props {
   userId: string
+  groupId: string
 }
 
 function SendIcon() {
@@ -65,9 +66,10 @@ function EyeOffIcon() {
   )
 }
 
-export default function Composer({ userId }: Props) {
+export default function Composer({ userId, groupId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { groupKey, isSending, setSending, sendError, setSendError } = useHistoryStore()
+  const { groupKeys, isSending, setSending, sendError, setSendError } = useHistoryStore()
+  const groupKey = groupKeys.get(groupId)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [hideMode, setHideMode] = useState(false)
 
@@ -81,7 +83,7 @@ export default function Composer({ userId }: Props) {
     e.target.value = ''
 
     if (!groupKey) {
-      setSendError('Vault locked — sign in again to unlock photo encryption.')
+      setSendError('Vault locked for this group — sign in again to unlock photo encryption.')
       return
     }
 
@@ -89,7 +91,7 @@ export default function Composer({ userId }: Props) {
     setSending(true)
     try {
       const blob = await downscaleImage(file, 1600, 0.85)
-      await uploadPhoto(blob, userId, groupKey, hideMode)
+      await uploadPhoto(blob, userId, groupId, groupKey, hideMode)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[nudgepeek] send photo failed:', err)
@@ -152,6 +154,7 @@ export default function Composer({ userId }: Props) {
       {cameraOpen && (
         <CameraCapture
           userId={userId}
+          groupId={groupId}
           onClose={() => setCameraOpen(false)}
           onSendStart={() => {
             setSendError(null)

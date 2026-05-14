@@ -1,0 +1,204 @@
+.wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #f0f0f5;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.trigger:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.triggerLabel {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: #15151c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  padding: 8px 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.section + .section {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sectionLabel {
+  padding: 4px 12px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6e6e82;
+}
+
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: #c8c8d6;
+  font-size: 13px;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.groupRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.groupRowActive {
+  color: #fff;
+  background: rgba(124, 106, 247, 0.1);
+}
+
+.groupName {
+  flex: 1;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupRole {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a8a9e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.activeMark {
+  color: #a99cff;
+  display: inline-flex;
+  align-items: center;
+}
+
+.inviteRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0 12px 6px;
+}
+
+.inviteCode {
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  padding: 6px 10px;
+  background: rgba(124, 106, 247, 0.1);
+  border: 1px solid rgba(124, 106, 247, 0.22);
+  border-radius: 6px;
+  color: #d8d6ff;
+}
+
+.iconBtn {
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #c8c8d6;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.linkBtn {
+  margin: 0 12px 4px;
+  padding: 5px 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: #8a8a9e;
+  font-size: 11.5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.12s ease;
+}
+
+.linkBtn:hover:not(:disabled) {
+  color: #a99cff;
+}
+
+.linkBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: #c8c8d6;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.actionRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.actionLabel {
+  font-weight: 500;
+}

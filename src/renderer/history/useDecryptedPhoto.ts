@@ -7,8 +7,8 @@ export interface DecryptedPhoto {
   error: string | null
 }
 
-export function useDecryptedPhoto(signedUrl: string): DecryptedPhoto {
-  const groupKey = useHistoryStore((s) => s.groupKey)
+export function useDecryptedPhoto(signedUrl: string, groupId: string): DecryptedPhoto {
+  const groupKey = useHistoryStore((s) => s.groupKeys.get(groupId))
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 

@@ -2,13 +2,12 @@ import React, { FormEvent, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { getCurrentSupabaseUrl, supabase } from '../shared/supabase.js'
 import { signUpWithName } from '../shared/api.js'
-import { provisionVaultOnSignin } from '../shared/vault.js'
+import { provisionKeypairOnSignin, type UserKeypair } from '../shared/vault.js'
 import { identifierToEmail, isValidName } from '../shared/identity.js'
-import { useHistoryStore } from './store.js'
 import styles from './Login.module.css'
 
 interface Props {
-  onSuccess: (session: Session) => Promise<void>
+  onSuccess: (session: Session, keypair: UserKeypair) => Promise<void>
   onSwitchProject: () => Promise<void>
 }
 
@@ -51,8 +50,6 @@ export default function Login({ onSuccess, onSwitchProject }: Props) {
       setError('Could not switch project — try again.')
       setSwitching(false)
     }
-    // If it succeeded, this component unmounts as Bootstrap re-renders the
-    // setup screen, so we don't need to clear `switching`.
   }
 
   function switchMode(next: Mode) {
@@ -69,16 +66,14 @@ export default function Login({ onSuccess, onSwitchProject }: Props) {
     setInfo(null)
     setLoading(true)
     try {
+      let session: Session | null = null
       if (mode === 'signin') {
         const { data, error: authError } = await supabase.auth.signInWithPassword({
           email: identifierToEmail(name),
           password,
         })
         if (authError) throw authError
-        if (data.session) {
-          await unlockVault(password, data.session.user.id)
-          await onSuccess(data.session)
-        }
+        session = data.session
       } else {
         if (password !== confirmPassword) throw new Error('Passwords do not match')
         if (!isValidName(name)) {
@@ -86,38 +81,31 @@ export default function Login({ onSuccess, onSwitchProject }: Props) {
             'Name must be at least 3 characters and start with a letter (a–z, 0–9, ., _, - allowed)',
           )
         }
-        const { session } = await signUpWithName(name, password)
-        if (session) {
-          await unlockVault(password, session.user.id)
-          await onSuccess(session)
-        } else {
-          setInfo(
-            'Account created. Awaiting admin approval — try signing in once an admin lets you in.',
-          )
-          setMode('signin')
-          setPassword('')
-          setConfirmPassword('')
-        }
+        const result = await signUpWithName(name, password)
+        session = result.session
       }
+
+      if (!session) {
+        setInfo(
+          mode === 'signup'
+            ? 'Account created. Check your email to confirm, then sign in.'
+            : 'Signed in.',
+        )
+        return
+      }
+
+      const provision = await provisionKeypairOnSignin(password, session.user.id)
+      if (provision.kind === 'error') {
+        await supabase.auth.signOut()
+        throw new Error(provision.message)
+      }
+      await onSuccess(session, provision.keypair)
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : 'Sign in failed'
       setError(humaniseAuthError(raw))
     } finally {
       setLoading(false)
     }
-  }
-
-  async function unlockVault(pw: string, userId: string) {
-    const result = await provisionVaultOnSignin(pw, userId)
-    if (result.kind === 'grant-missing') {
-      // Approved but no grant in DB. Abort signin so the user doesn't land in
-      // an inconsistent app state.
-      await supabase.auth.signOut()
-      throw new Error(
-        'Your account is approved but your vault grant is missing. Ask the admin to re-approve you from the Admin panel.',
-      )
-    }
-    useHistoryStore.getState().setGroupKey(result.kind === 'ready' ? result.groupKey : null)
   }
 
   const isSignup = mode === 'signup'
@@ -128,7 +116,7 @@ export default function Login({ onSuccess, onSwitchProject }: Props) {
         <div className={styles.logoMark}>N</div>
         <h1 className={styles.title}>NudgePeek</h1>
         <p className={styles.subtitle}>
-          {isSignup ? 'Create an account to join the group' : 'Sign in to share photos'}
+          {isSignup ? 'Create an account to get started' : 'Sign in to share photos'}
         </p>
 
         <div className={styles.tabs} role="tablist">

@@ -1,4 +1,7 @@
-export const SYNTHETIC_EMAIL_DOMAIN = 'nudgepeek.local'
+// Supabase Auth rejects emails on reserved TLDs (.local, .invalid, etc.) so
+// we use a real-looking subdomain. "Confirm email" is off in the auth config
+// so nothing is ever actually sent to this address.
+export const SYNTHETIC_EMAIL_DOMAIN = 'users.nudgepeek.app'
 
 export function nameToSlug(raw: string): string {
   return raw

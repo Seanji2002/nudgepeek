@@ -21,7 +21,7 @@ In **Authentication → Sign In / Providers → Email**:
 - **Allow new users to sign up**: **on** (default).
 - **Confirm email**: **off**.
 
-NudgePeek lets users sign up with just a name + password — internally it synthesises emails like `alice@nudgepeek.local` that can't receive mail, so confirmation links would dead-letter.
+NudgePeek lets users sign up with just a name + password — internally it synthesises emails like `alice@users.nudgepeek.app` that can't receive mail, so confirmation links would dead-letter. (Older builds used `@nudgepeek.local`; Supabase Auth now rejects reserved TLDs, so we use a real-looking subdomain instead.)
 
 ---
 

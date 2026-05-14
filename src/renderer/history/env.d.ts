@@ -8,6 +8,8 @@ interface IncomingPhotoPayload {
   photoBytes: Uint8Array
   senderName: string
   senderUserId: string
+  groupId: string
+  groupName: string
   sentAt: string
   hidden: boolean
   fromCurrentUser: boolean
@@ -17,6 +19,8 @@ interface DisplayPhotoPayload {
   photoId: string
   photoBytes: Uint8Array
   senderName: string
+  groupId: string
+  groupName: string
   sentAt: string
   hidden: boolean
 }
@@ -52,9 +56,11 @@ interface NudgeHistoryApi {
   getStoredSupabaseConfig: () => Promise<StoredSupabaseConfig | null>
   setStoredSupabaseConfig: (config: StoredSupabaseConfig) => Promise<true>
   clearStoredSupabaseConfig: () => Promise<true>
-  getVault: () => Promise<Uint8Array | null>
-  setVault: (key: Uint8Array) => Promise<void>
-  clearVault: () => Promise<void>
+  getGroupKey: (groupId: string) => Promise<Uint8Array | null>
+  getAllGroupKeys: () => Promise<Record<string, Uint8Array>>
+  setGroupKey: (groupId: string, key: Uint8Array) => Promise<void>
+  clearGroupKey: (groupId: string) => Promise<void>
+  clearAllVaults: () => Promise<void>
   sendSeedQueue: (payload: SeedQueuePayload) => void
   onWidgetAck: (callback: (photoId: string) => void) => () => void
   onPowerResume: (callback: () => void) => () => void

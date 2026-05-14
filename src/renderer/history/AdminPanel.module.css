@@ -89,6 +89,19 @@
   margin: 0;
 }
 
+.sectionLabel {
+  padding: 14px 16px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6e6e82;
+}
+
+.sectionLabel:first-of-type {
+  padding-top: 8px;
+}
+
 .list {
   list-style: none;
   margin: 0;

@@ -11,9 +11,11 @@ const CHANNELS = {
   SUPABASE_CONFIG_GET: 'supabase:config-get',
   SUPABASE_CONFIG_SET: 'supabase:config-set',
   SUPABASE_CONFIG_CLEAR: 'supabase:config-clear',
-  VAULT_GET: 'vault:get',
-  VAULT_SET: 'vault:set',
-  VAULT_CLEAR: 'vault:clear',
+  VAULT_GET_GROUP: 'vault:get-group',
+  VAULT_GET_ALL: 'vault:get-all',
+  VAULT_SET_GROUP: 'vault:set-group',
+  VAULT_CLEAR_GROUP: 'vault:clear-group',
+  VAULT_CLEAR_ALL: 'vault:clear-all',
   HISTORY_SEED_QUEUE: 'photo:history-seeds',
   WIDGET_ACK_FORWARD: 'widget:ack-forward',
   POWER_RESUME: 'power:resume',
@@ -50,11 +52,19 @@ contextBridge.exposeInMainWorld('nudgeHistory', {
 
   clearStoredSupabaseConfig: () => ipcRenderer.invoke(CHANNELS.SUPABASE_CONFIG_CLEAR),
 
-  getVault: () => ipcRenderer.invoke(CHANNELS.VAULT_GET) as Promise<Uint8Array | null>,
+  getGroupKey: (groupId: string) =>
+    ipcRenderer.invoke(CHANNELS.VAULT_GET_GROUP, groupId) as Promise<Uint8Array | null>,
 
-  setVault: (key: Uint8Array) => ipcRenderer.invoke(CHANNELS.VAULT_SET, key) as Promise<void>,
+  getAllGroupKeys: () =>
+    ipcRenderer.invoke(CHANNELS.VAULT_GET_ALL) as Promise<Record<string, Uint8Array>>,
 
-  clearVault: () => ipcRenderer.invoke(CHANNELS.VAULT_CLEAR) as Promise<void>,
+  setGroupKey: (groupId: string, key: Uint8Array) =>
+    ipcRenderer.invoke(CHANNELS.VAULT_SET_GROUP, { groupId, key }) as Promise<void>,
+
+  clearGroupKey: (groupId: string) =>
+    ipcRenderer.invoke(CHANNELS.VAULT_CLEAR_GROUP, groupId) as Promise<void>,
+
+  clearAllVaults: () => ipcRenderer.invoke(CHANNELS.VAULT_CLEAR_ALL) as Promise<void>,
 
   sendSeedQueue: (payload: unknown) => ipcRenderer.send(CHANNELS.HISTORY_SEED_QUEUE, payload),
 

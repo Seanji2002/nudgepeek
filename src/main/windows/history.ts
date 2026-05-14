@@ -10,9 +10,9 @@ app.once('before-quit', () => {
 
 export function createHistoryWindow(): BrowserWindow {
   historyWindow = new BrowserWindow({
-    width: 460,
+    width: 700,
     height: 640,
-    minWidth: 380,
+    minWidth: 620,
     minHeight: 500,
     show: false,
     backgroundColor: '#0f0f14',

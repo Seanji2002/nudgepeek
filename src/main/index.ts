@@ -8,7 +8,14 @@ import {
   loadSupabaseConfig,
   clearSupabaseConfig,
 } from './supabaseConfig.js'
-import { initVaultStorage, saveVault, loadVault, clearVault } from './vault.js'
+import {
+  initVaultStorage,
+  saveGroupKey,
+  loadGroupKey,
+  loadAllGroupKeys,
+  clearGroupKey,
+  clearAllGroupKeys,
+} from './vault.js'
 import {
   createWidgetWindow,
   getWidgetWindow,
@@ -159,7 +166,7 @@ app.whenReady().then(() => {
     onAutoLaunchChange: setAutoLaunch,
     onSignOut: () => {
       clearSession()
-      clearVault()
+      clearAllGroupKeys()
       setTrayLoggedIn(false)
       hideWidget()
       getHistoryWindow()?.webContents.send(IPC_TO_RENDERER.AUTH_FORCE_SIGNOUT)
@@ -194,7 +201,7 @@ app.whenReady().then(() => {
       if (!getWidgetWindow()?.isVisible()) showWidget()
     } else {
       clearSession()
-      clearVault()
+      clearAllGroupKeys()
       setTrayLoggedIn(false)
       hideWidget()
     }
@@ -210,6 +217,8 @@ app.whenReady().then(() => {
       photoId: payload.photoId,
       photoBytes: payload.photoBytes,
       senderName: payload.senderName,
+      groupId: payload.groupId,
+      groupName: payload.groupName,
       sentAt: payload.sentAt,
       hidden: payload.hidden,
     }
@@ -296,26 +305,44 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_INVOKE.SUPABASE_CONFIG_CLEAR, () => {
     clearSupabaseConfig()
     clearSession()
-    clearVault()
+    clearAllGroupKeys()
     setTrayLoggedIn(false)
     hideWidget()
     return true
   })
 
-  // ─── IPC: vault (group key) ─────────────────────────────────────────────
-  ipcMain.handle(IPC_INVOKE.VAULT_GET, (): Uint8Array | null => {
-    return loadVault()
+  // ─── IPC: vault (per-group group keys) ──────────────────────────────────
+  ipcMain.handle(IPC_INVOKE.VAULT_GET_GROUP, (_e, groupId: string): Uint8Array | null => {
+    if (typeof groupId !== 'string' || !groupId) return null
+    return loadGroupKey(groupId)
   })
 
-  ipcMain.handle(IPC_INVOKE.VAULT_SET, (_e, key: Uint8Array) => {
-    if (!(key instanceof Uint8Array) || key.length === 0) {
-      throw new Error('vault key must be a non-empty Uint8Array')
-    }
-    saveVault(key)
+  ipcMain.handle(IPC_INVOKE.VAULT_GET_ALL, (): Record<string, Uint8Array> => {
+    const map = loadAllGroupKeys()
+    const out: Record<string, Uint8Array> = {}
+    for (const [k, v] of map) out[k] = v
+    return out
   })
 
-  ipcMain.handle(IPC_INVOKE.VAULT_CLEAR, () => {
-    clearVault()
+  ipcMain.handle(
+    IPC_INVOKE.VAULT_SET_GROUP,
+    (_e, payload: { groupId: string; key: Uint8Array }) => {
+      if (!payload || typeof payload.groupId !== 'string' || !payload.groupId) {
+        throw new Error('groupId must be a non-empty string')
+      }
+      if (!(payload.key instanceof Uint8Array) || payload.key.length === 0) {
+        throw new Error('vault key must be a non-empty Uint8Array')
+      }
+      saveGroupKey(payload.groupId, payload.key)
+    },
+  )
+
+  ipcMain.handle(IPC_INVOKE.VAULT_CLEAR_GROUP, (_e, groupId: string) => {
+    if (typeof groupId === 'string' && groupId) clearGroupKey(groupId)
+  })
+
+  ipcMain.handle(IPC_INVOKE.VAULT_CLEAR_ALL, () => {
+    clearAllGroupKeys()
   })
 })
 

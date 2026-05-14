@@ -75,6 +75,8 @@ export default function WidgetApp() {
         photoId: payload.photoId,
         displayUrl: URL.createObjectURL(blob),
         senderName: payload.senderName,
+        groupId: payload.groupId,
+        groupName: payload.groupName,
         sentAt: payload.sentAt,
         hidden: payload.hidden,
       }
@@ -164,7 +166,12 @@ export default function WidgetApp() {
               {currentPhoto.senderName.charAt(0).toUpperCase()}
             </div>
             <div className={styles.metaText}>
-              <span className={styles.senderName}>{currentPhoto.senderName}</span>
+              <span className={styles.nameRow}>
+                <span className={styles.senderName}>{currentPhoto.senderName}</span>
+                {currentPhoto.groupName && (
+                  <span className={styles.groupPill}>{currentPhoto.groupName}</span>
+                )}
+              </span>
               <span className={styles.sentTime}>{formatAge(currentPhoto.sentAt)}</span>
             </div>
           </div>

@@ -111,7 +111,7 @@ interface PhotoCardProps {
 }
 
 function PhotoCard({ photo, userId, revealed, onReveal }: PhotoCardProps) {
-  const { src, error } = useDecryptedPhoto(photo.signedUrl)
+  const { src, error } = useDecryptedPhoto(photo.signedUrl, photo.groupId)
   const isHidden = photo.hidden && !revealed
   return (
     <article className={styles.card}>

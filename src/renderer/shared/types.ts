@@ -7,6 +7,7 @@ export interface Profile {
 export interface Photo {
   id: string
   senderId: string
+  groupId: string
   storagePath: string
   hidden: boolean
   createdAt: string
@@ -15,6 +16,10 @@ export interface Photo {
 export interface PhotoWithMeta extends Photo {
   senderName: string
   signedUrl: string
+}
+
+export interface UnreadPhotoWithMeta extends PhotoWithMeta {
+  groupName: string
 }
 
 export interface Comment {
@@ -30,8 +35,26 @@ export interface CommentWithMeta extends Comment {
   authorName: string
 }
 
-export interface PendingProfile {
+export type GroupRole = 'owner' | 'admin' | 'member'
+
+export interface GroupSummary {
   id: string
+  name: string
+  inviteCode: string | null
+  role: GroupRole
+  approved: boolean
+}
+
+export interface GroupMember {
+  userId: string
+  displayName: string
+  role: GroupRole
+  approved: boolean
+  createdAt: string
+}
+
+export interface PendingGroupRequest {
+  userId: string
   displayName: string
   createdAt: string
 }

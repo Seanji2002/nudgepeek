@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import { approveProfile, listPendingProfiles, rejectProfile } from '../shared/api.js'
+import {
+  approveGroupMember,
+  demoteGroupAdmin,
+  listGroupMembers,
+  listPendingJoinRequests,
+  promoteGroupAdmin,
+  rejectGroupMember,
+} from '../shared/api.js'
 import { useHistoryStore } from './store.js'
-import type { PendingProfile } from '../shared/types.js'
+import type { GroupMember, PendingGroupRequest } from '../shared/types.js'
 import styles from './AdminPanel.module.css'
 
 interface Props {
+  groupId: string
+  isOwner: boolean
   onClose: () => void
+  onChanged: () => Promise<void>
 }
 
 function formatRelativeTime(iso: string): string {
@@ -39,19 +49,32 @@ function CloseIcon() {
   )
 }
 
-export default function AdminPanel({ onClose }: Props) {
-  const [pending, setPending] = useState<PendingProfile[] | null>(null)
+export default function AdminPanel({ groupId, isOwner, onClose, onChanged }: Props) {
+  const [pending, setPending] = useState<PendingGroupRequest[] | null>(null)
+  const [members, setMembers] = useState<GroupMember[] | null>(null)
   const [working, setWorking] = useState<string | null>(null)
   const [confirmReject, setConfirmReject] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const groupKey = useHistoryStore((s) => s.groupKey)
+  const groupKeys = useHistoryStore((s) => s.groupKeys)
   const user = useHistoryStore((s) => s.user)
+  const groupKey = groupKeys.get(groupId)
+
+  async function reload() {
+    const [pendingRows, memberRows] = await Promise.all([
+      listPendingJoinRequests(groupId),
+      listGroupMembers(groupId),
+    ])
+    setPending(pendingRows)
+    setMembers(memberRows)
+  }
 
   useEffect(() => {
     let cancelled = false
-    listPendingProfiles()
-      .then((rows) => {
-        if (!cancelled) setPending(rows)
+    Promise.all([listPendingJoinRequests(groupId), listGroupMembers(groupId)])
+      .then(([pendingRows, memberRows]) => {
+        if (cancelled) return
+        setPending(pendingRows)
+        setMembers(memberRows)
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(messageOf(e))
@@ -59,7 +82,7 @@ export default function AdminPanel({ onClose }: Props) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [groupId])
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -71,14 +94,15 @@ export default function AdminPanel({ onClose }: Props) {
 
   async function approve(id: string) {
     if (!groupKey || !user) {
-      setError('Vault locked — sign in again before approving members.')
+      setError('Vault locked for this group — sign in again before approving.')
       return
     }
     setWorking(id)
     setError(null)
     try {
-      await approveProfile(id, groupKey, user.id)
-      setPending((prev) => (prev ?? []).filter((p) => p.id !== id))
+      await approveGroupMember(groupId, id, groupKey)
+      await reload()
+      await onChanged()
     } catch (e: unknown) {
       setError(messageOf(e))
     } finally {
@@ -91,8 +115,34 @@ export default function AdminPanel({ onClose }: Props) {
     setConfirmReject(null)
     setError(null)
     try {
-      await rejectProfile(id)
-      setPending((prev) => (prev ?? []).filter((p) => p.id !== id))
+      await rejectGroupMember(groupId, id)
+      await reload()
+    } catch (e: unknown) {
+      setError(messageOf(e))
+    } finally {
+      setWorking(null)
+    }
+  }
+
+  async function promote(id: string) {
+    setWorking(id)
+    setError(null)
+    try {
+      await promoteGroupAdmin(groupId, id)
+      await reload()
+    } catch (e: unknown) {
+      setError(messageOf(e))
+    } finally {
+      setWorking(null)
+    }
+  }
+
+  async function demote(id: string) {
+    setWorking(id)
+    setError(null)
+    try {
+      await demoteGroupAdmin(groupId, id)
+      await reload()
     } catch (e: unknown) {
       setError(messageOf(e))
     } finally {
@@ -109,13 +159,14 @@ export default function AdminPanel({ onClose }: Props) {
     >
       <div className={styles.modal}>
         <div className={styles.head}>
-          <h2 className={styles.title}>Pending approvals</h2>
+          <h2 className={styles.title}>Group admin</h2>
           <button type="button" className={styles.closeBtn} onClick={onClose} title="Close">
             <CloseIcon />
           </button>
         </div>
 
         <div className={styles.body}>
+          <div className={styles.sectionLabel}>Pending requests</div>
           {pending === null ? (
             <div className={styles.loadingRow}>
               <span className={styles.spinner} />
@@ -125,28 +176,28 @@ export default function AdminPanel({ onClose }: Props) {
           ) : (
             <ul className={styles.list}>
               {pending.map((p) => (
-                <li key={p.id} className={styles.row}>
+                <li key={p.userId} className={styles.row}>
                   <div className={styles.avatar}>{p.displayName.charAt(0).toUpperCase()}</div>
                   <div className={styles.meta}>
                     <span className={styles.name}>{p.displayName}</span>
                     <span className={styles.time}>{formatRelativeTime(p.createdAt)}</span>
                   </div>
-                  {confirmReject === p.id ? (
+                  {confirmReject === p.userId ? (
                     <div className={styles.actions}>
                       <span className={styles.confirmLabel}>Reject?</span>
                       <button
                         type="button"
                         className={styles.dangerBtn}
-                        onClick={() => reject(p.id)}
-                        disabled={working === p.id}
+                        onClick={() => reject(p.userId)}
+                        disabled={working === p.userId}
                       >
-                        {working === p.id ? '…' : 'Yes'}
+                        {working === p.userId ? '…' : 'Yes'}
                       </button>
                       <button
                         type="button"
                         className={styles.linkBtn}
                         onClick={() => setConfirmReject(null)}
-                        disabled={working === p.id}
+                        disabled={working === p.userId}
                       >
                         Cancel
                       </button>
@@ -156,7 +207,7 @@ export default function AdminPanel({ onClose }: Props) {
                       <button
                         type="button"
                         className={styles.linkBtn}
-                        onClick={() => setConfirmReject(p.id)}
+                        onClick={() => setConfirmReject(p.userId)}
                         disabled={working !== null}
                       >
                         Reject
@@ -164,16 +215,59 @@ export default function AdminPanel({ onClose }: Props) {
                       <button
                         type="button"
                         className={styles.primaryBtn}
-                        onClick={() => approve(p.id)}
+                        onClick={() => approve(p.userId)}
                         disabled={working !== null}
                       >
-                        {working === p.id ? '…' : 'Approve'}
+                        {working === p.userId ? '…' : 'Approve'}
                       </button>
                     </div>
                   )}
                 </li>
               ))}
             </ul>
+          )}
+
+          {members && members.length > 0 && (
+            <>
+              <div className={styles.sectionLabel}>Members</div>
+              <ul className={styles.list}>
+                {members.map((m) => (
+                  <li key={m.userId} className={styles.row}>
+                    <div className={styles.avatar}>{m.displayName.charAt(0).toUpperCase()}</div>
+                    <div className={styles.meta}>
+                      <span className={styles.name}>{m.displayName}</span>
+                      <span className={styles.time}>
+                        {m.role} · joined {formatRelativeTime(m.createdAt)}
+                      </span>
+                    </div>
+                    {isOwner && m.userId !== user?.id && m.role === 'member' && (
+                      <div className={styles.actions}>
+                        <button
+                          type="button"
+                          className={styles.linkBtn}
+                          onClick={() => promote(m.userId)}
+                          disabled={working !== null}
+                        >
+                          {working === m.userId ? '…' : 'Make admin'}
+                        </button>
+                      </div>
+                    )}
+                    {isOwner && m.userId !== user?.id && m.role === 'admin' && (
+                      <div className={styles.actions}>
+                        <button
+                          type="button"
+                          className={styles.linkBtn}
+                          onClick={() => demote(m.userId)}
+                          disabled={working !== null}
+                        >
+                          {working === m.userId ? '…' : 'Demote'}
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {error && (

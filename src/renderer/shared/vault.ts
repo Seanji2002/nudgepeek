@@ -8,35 +8,30 @@ import {
   unwrapPrivateKey,
   wrapPrivateKey,
 } from './crypto.js'
-import {
-  fetchOwnCryptoMaterial,
-  fetchOwnGrant,
-  vaultExists,
-  writeGrant,
-  writeOwnCryptoMaterial,
-} from './api.js'
+import { fetchAllOwnGrants, fetchOwnCryptoMaterial, writeOwnCryptoMaterial } from './api.js'
+
+export interface UserKeypair {
+  publicKey: Uint8Array
+  privateKey: Uint8Array
+}
 
 export type ProvisionResult =
-  | { kind: 'ready'; groupKey: Uint8Array }
-  | { kind: 'pending-approval' }
-  | { kind: 'grant-missing' }
+  | { kind: 'ready'; keypair: UserKeypair }
+  | { kind: 'error'; message: string }
 
 /**
  * Called right after a successful Supabase signin/signup while the password
- * is still in memory. Outcomes:
- *  - ready: group key unlocked, cached on disk
- *  - pending-approval: keypair is provisioned but the user isn't approved yet
- *  - grant-missing: user is approved but no vault grant exists (anomaly —
- *    typically caused by manually flipping `approved` via SQL)
+ * is still in memory. Provisions the user's keypair if missing, then returns
+ * the unwrapped keypair so callers can fetch + unseal group keys.
  */
-export async function provisionVaultOnSignin(
+export async function provisionKeypairOnSignin(
   password: string,
   userId: string,
 ): Promise<ProvisionResult> {
   const material = await fetchOwnCryptoMaterial(userId)
 
   if (!material.publicKey) {
-    // First time on this account from the new app build — provision the keypair.
+    // First-time on this account from this build — provision the keypair.
     const salt = await genSalt()
     const kek = await deriveKEK(password, salt)
     const { publicKey, privateKey } = await genKeypair()
@@ -47,21 +42,11 @@ export async function provisionVaultOnSignin(
       privateKeyNonce: wrapped.nonce,
       kdfSalt: salt,
     })
-
-    if (material.isAdmin) {
-      // Admin bootstrap: mint the group key and seal it to themselves.
-      const groupKey = await genGroupKey()
-      const sealed = await sealGroupKey(groupKey, publicKey)
-      await writeGrant(userId, sealed, userId)
-      await cacheGroupKey(groupKey)
-      return { kind: 'ready', groupKey }
-    }
-    return { kind: 'pending-approval' }
+    return { kind: 'ready', keypair: { publicKey, privateKey } }
   }
 
-  // Keypair already provisioned. Decrypt private key, then try to load the grant.
   if (!material.encryptedPrivateKey || !material.privateKeyNonce || !material.kdfSalt) {
-    throw new Error('Profile crypto material is partially missing — contact your admin.')
+    return { kind: 'error', message: 'Profile crypto material is partially missing.' }
   }
   const kek = await deriveKEK(password, material.kdfSalt)
   const privateKey = await unwrapPrivateKey(
@@ -69,40 +54,57 @@ export async function provisionVaultOnSignin(
     material.privateKeyNonce,
     kek,
   )
-  const sealed = await fetchOwnGrant(userId)
-  if (!sealed) {
-    // First-admin recovery: an admin with a provisioned keypair but no grant.
-    // This happens when the account signed up as a non-admin (provisioning the
-    // keypair) and was later promoted via SQL. If the vault has never been
-    // bootstrapped, mint a fresh group key sealed to the admin's existing
-    // public key. Otherwise, an existing admin needs to re-issue the grant.
-    if (material.approved && material.isAdmin) {
-      const exists = await vaultExists()
-      if (!exists) {
-        const groupKey = await genGroupKey()
-        const sealedSelf = await sealGroupKey(groupKey, material.publicKey)
-        await writeGrant(userId, sealedSelf, userId)
-        await cacheGroupKey(groupKey)
-        return { kind: 'ready', groupKey }
-      }
-    }
-    return material.approved ? { kind: 'grant-missing' } : { kind: 'pending-approval' }
-  }
-  const groupKey = await unsealGroupKey(sealed, material.publicKey, privateKey)
-  await cacheGroupKey(groupKey)
-  return { kind: 'ready', groupKey }
+  return { kind: 'ready', keypair: { publicKey: material.publicKey, privateKey } }
 }
 
-export async function loadGroupKeyFromCache(): Promise<Uint8Array | null> {
-  const cached = await window.nudgeHistory.getVault()
+/**
+ * Fetch every group key the user has been granted, unseal each with the
+ * user's private key, and return as a Map keyed by group_id. Also writes
+ * each key to the per-group on-disk cache.
+ */
+export async function loadAllGroupKeys(
+  userId: string,
+  keypair: UserKeypair,
+): Promise<Map<string, Uint8Array>> {
+  const grants = await fetchAllOwnGrants(userId)
+  const out = new Map<string, Uint8Array>()
+  for (const grant of grants) {
+    try {
+      const key = await unsealGroupKey(grant.sealedGroupKey, keypair.publicKey, keypair.privateKey)
+      out.set(grant.groupId, key)
+      await window.nudgeHistory.setGroupKey(grant.groupId, key)
+    } catch (err) {
+      console.error(`[vault] Failed to unseal group key for ${grant.groupId}:`, err)
+    }
+  }
+  return out
+}
+
+/**
+ * Generate a fresh 32-byte symmetric key for a brand-new group. The caller
+ * seals it to their own public key and passes both to `createGroup` in api.ts.
+ */
+export async function mintNewGroupKey(): Promise<Uint8Array> {
+  return genGroupKey()
+}
+
+export async function sealKeyForOwnPublicKey(
+  groupKey: Uint8Array,
+  ownPublicKey: Uint8Array,
+): Promise<Uint8Array> {
+  return sealGroupKey(groupKey, ownPublicKey)
+}
+
+export async function cacheGroupKey(groupId: string, key: Uint8Array): Promise<void> {
+  await window.nudgeHistory.setGroupKey(groupId, key)
+}
+
+export async function loadGroupKeyFromCache(groupId: string): Promise<Uint8Array | null> {
+  const cached = await window.nudgeHistory.getGroupKey(groupId)
   if (!cached || cached.length === 0) return null
   return cached
 }
 
-export async function cacheGroupKey(groupKey: Uint8Array): Promise<void> {
-  await window.nudgeHistory.setVault(groupKey)
-}
-
-export async function clearLocalVault(): Promise<void> {
-  await window.nudgeHistory.clearVault()
+export async function clearAllLocalVaults(): Promise<void> {
+  await window.nudgeHistory.clearAllVaults()
 }

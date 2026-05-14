@@ -9,13 +9,28 @@ app.once('before-quit', () => {
   appIsQuitting = true
 })
 
+const W = 300
+const H = 340
+const EDGE_PAD = 4
+
+function clampToWorkArea(x: number, y: number): { x: number; y: number } {
+  const { workArea } = screen.getPrimaryDisplay()
+  const maxX = workArea.x + workArea.width - W - EDGE_PAD
+  const maxY = workArea.y + workArea.height - H - EDGE_PAD
+  const minX = workArea.x + EDGE_PAD
+  const minY = workArea.y + EDGE_PAD
+  return {
+    x: Math.min(Math.max(x, minX), maxX),
+    y: Math.min(Math.max(y, minY), maxY),
+  }
+}
+
 export function createWidgetWindow(): BrowserWindow {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
 
-  const W = 300
-  const H = 340
-  const x = getPref('widgetX') ?? sw - W - 20
-  const y = getPref('widgetY') ?? sh - H - 20
+  const storedX = getPref('widgetX') ?? sw - W - 20
+  const storedY = getPref('widgetY') ?? sh - H - 20
+  const { x, y } = clampToWorkArea(storedX, storedY)
 
   widgetWindow = new BrowserWindow({
     width: W,
@@ -43,8 +58,10 @@ export function createWidgetWindow(): BrowserWindow {
   widgetWindow.on('moved', () => {
     if (!widgetWindow) return
     const [wx, wy] = widgetWindow.getPosition()
-    setPref('widgetX', wx)
-    setPref('widgetY', wy)
+    const { x: cx, y: cy } = clampToWorkArea(wx, wy)
+    if (cx !== wx || cy !== wy) widgetWindow.setPosition(cx, cy)
+    setPref('widgetX', cx)
+    setPref('widgetY', cy)
   })
 
   // Hide instead of close so the app keeps running.

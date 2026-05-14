@@ -9,6 +9,8 @@ interface DisplayPhotoPayload {
   photoId: string
   photoBytes: Uint8Array
   senderName: string
+  groupId: string
+  groupName: string
   sentAt: string
   hidden: boolean
 }

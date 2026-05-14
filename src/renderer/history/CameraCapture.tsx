@@ -5,6 +5,7 @@ import styles from './CameraCapture.module.css'
 
 interface Props {
   userId: string
+  groupId: string
   onClose: () => void
   onSendStart: () => void
   onSendEnd: () => void
@@ -19,6 +20,7 @@ const JPEG_QUALITY = 0.85
 
 export default function CameraCapture({
   userId,
+  groupId,
   onClose,
   onSendStart,
   onSendEnd,
@@ -33,7 +35,7 @@ export default function CameraCapture({
   const [camError, setCamError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [hideMode, setHideMode] = useState(false)
-  const groupKey = useHistoryStore((s) => s.groupKey)
+  const groupKey = useHistoryStore((s) => s.groupKeys.get(groupId))
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -151,14 +153,14 @@ export default function CameraCapture({
     const blob = capturedBlobRef.current
     if (!blob) return
     if (!groupKey) {
-      onSendError('Vault locked — sign in again to unlock photo encryption.')
+      onSendError('Vault locked for this group — sign in again to unlock photo encryption.')
       return
     }
 
     setSending(true)
     onSendStart()
     try {
-      await uploadPhoto(blob, userId, groupKey, hideMode)
+      await uploadPhoto(blob, userId, groupId, groupKey, hideMode)
       onClose()
     } catch (err: unknown) {
       onSendError(err instanceof Error ? err.message : 'Could not send photo')

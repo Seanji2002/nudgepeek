@@ -1,0 +1,134 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #0f0f14;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.logoMark {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7c6af7 0%, #5344d4 100%);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(124, 106, 247, 0.35);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f0f0f5;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8a8a9e;
+  margin: 0 0 22px 0;
+  text-align: center;
+}
+
+.choices {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.choiceCard {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #f0f0f5;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.05s ease;
+}
+
+.choiceCard:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.choiceCard:active {
+  transform: translateY(1px);
+}
+
+.choiceCard[data-variant='primary'] {
+  background: rgba(124, 106, 247, 0.1);
+  border-color: rgba(124, 106, 247, 0.3);
+}
+
+.choiceCard[data-variant='primary']:hover {
+  background: rgba(124, 106, 247, 0.16);
+  border-color: rgba(124, 106, 247, 0.45);
+}
+
+.choiceIcon {
+  color: #a99cff;
+  margin-bottom: 4px;
+}
+
+.choiceTitle {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.choiceBody {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #8a8a9e;
+}
+
+.pendingHint {
+  margin: 18px 0 0;
+  font-size: 12px;
+  color: #a99cff;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.signOutLink {
+  margin-top: 22px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  color: #8a8a9e;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.signOutLink:hover {
+  color: #c8c8d6;
+}

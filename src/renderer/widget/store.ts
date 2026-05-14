@@ -4,6 +4,8 @@ export interface PhotoFrame {
   photoId: string
   displayUrl: string
   senderName: string
+  groupId: string
+  groupName: string
   sentAt: string
   hidden: boolean
 }

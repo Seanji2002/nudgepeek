@@ -2,12 +2,25 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase.js'
 import { identifierToEmail } from './identity.js'
 import { encryptPhoto, fromBase64, sealGroupKey, toBase64 } from './crypto.js'
-import type { CommentWithMeta, PendingProfile, PhotoWithMeta } from './types.js'
+import type {
+  CommentWithMeta,
+  GroupMember,
+  GroupRole,
+  GroupSummary,
+  PendingGroupRequest,
+  PhotoWithMeta,
+  UnreadPhotoWithMeta,
+} from './types.js'
 
-export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
+// ── Photos ──────────────────────────────────────────────────────────────────
+
+export async function listPhotos(groupId: string, limit = 50): Promise<PhotoWithMeta[]> {
   const { data, error } = await supabase
     .from('photos')
-    .select('id, sender_id, storage_path, hidden, created_at, profiles:sender_id(display_name)')
+    .select(
+      'id, sender_id, group_id, storage_path, hidden, created_at, profiles:sender_id(display_name)',
+    )
+    .eq('group_id', groupId)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -25,6 +38,7 @@ export async function listPhotos(limit = 50): Promise<PhotoWithMeta[]> {
       return {
         id: row.id as string,
         senderId: row.sender_id as string,
+        groupId: row.group_id as string,
         storagePath: row.storage_path as string,
         hidden: (row.hidden as boolean | null) ?? false,
         createdAt: row.created_at as string,
@@ -46,12 +60,13 @@ export async function getSignedUrl(storagePath: string): Promise<string> {
 export async function uploadPhoto(
   blob: Blob,
   senderId: string,
+  groupId: string,
   groupKey: Uint8Array,
   hidden = false,
 ): Promise<void> {
   const plain = new Uint8Array(await blob.arrayBuffer())
   const payload = await encryptPhoto(plain, groupKey)
-  const filename = `${senderId}/${crypto.randomUUID()}.bin`
+  const filename = `${groupId}/${senderId}/${crypto.randomUUID()}.bin`
 
   const { error: uploadError } = await supabase.storage
     .from('photos')
@@ -61,7 +76,7 @@ export async function uploadPhoto(
 
   const { error: insertError } = await supabase
     .from('photos')
-    .insert({ sender_id: senderId, storage_path: filename, hidden })
+    .insert({ sender_id: senderId, group_id: groupId, storage_path: filename, hidden })
 
   if (insertError) {
     await supabase.storage.from('photos').remove([filename])
@@ -96,6 +111,8 @@ export async function downscaleImage(file: File, maxDim = 1600, quality = 0.85):
     img.src = URL.createObjectURL(file)
   })
 }
+
+// ── Comments ────────────────────────────────────────────────────────────────
 
 const COMMENT_SELECT =
   'id, photo_id, user_id, body, created_at, updated_at, profiles:user_id(display_name)'
@@ -168,6 +185,8 @@ export async function fetchAuthorName(userId: string): Promise<string> {
   return (data as { display_name?: string } | null)?.display_name ?? 'Unknown'
 }
 
+// ── Auth ────────────────────────────────────────────────────────────────────
+
 export async function signUpWithName(
   name: string,
   password: string,
@@ -182,50 +201,19 @@ export async function signUpWithName(
   return { session: data.session }
 }
 
-export async function listPendingProfiles(): Promise<PendingProfile[]> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, display_name, created_at')
-    .eq('approved', false)
-    .order('created_at', { ascending: true })
-  if (error) throw error
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    displayName: row.display_name as string,
-    createdAt: row.created_at as string,
-  }))
-}
-
-export async function approveProfile(
-  profileId: string,
-  groupKey: Uint8Array,
-  grantedBy: string,
-): Promise<void> {
-  const publicKey = await fetchPublicKey(profileId)
-  if (!publicKey) {
-    throw new Error(
-      'This user has not signed in from the new app build yet. Ask them to sign in once, then try approving again.',
-    )
-  }
-  const sealed = await sealGroupKey(groupKey, publicKey)
-  await writeGrant(profileId, sealed, grantedBy)
-  const { error } = await supabase.from('profiles').update({ approved: true }).eq('id', profileId)
-  if (error) throw error
-}
+// ── Profile crypto material ────────────────────────────────────────────────
 
 export interface OwnCryptoMaterial {
   publicKey: Uint8Array | null
   encryptedPrivateKey: Uint8Array | null
   privateKeyNonce: Uint8Array | null
   kdfSalt: Uint8Array | null
-  isAdmin: boolean
-  approved: boolean
 }
 
 export async function fetchOwnCryptoMaterial(userId: string): Promise<OwnCryptoMaterial> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('public_key, encrypted_private_key, private_key_nonce, kdf_salt, is_admin, approved')
+    .select('public_key, encrypted_private_key, private_key_nonce, kdf_salt')
     .eq('id', userId)
     .single()
   if (error) throw error
@@ -234,16 +222,12 @@ export async function fetchOwnCryptoMaterial(userId: string): Promise<OwnCryptoM
     encrypted_private_key: string | null
     private_key_nonce: string | null
     kdf_salt: string | null
-    is_admin: boolean | null
-    approved: boolean | null
   }
   return {
     publicKey: row.public_key ? fromBase64(row.public_key) : null,
     encryptedPrivateKey: row.encrypted_private_key ? fromBase64(row.encrypted_private_key) : null,
     privateKeyNonce: row.private_key_nonce ? fromBase64(row.private_key_nonce) : null,
     kdfSalt: row.kdf_salt ? fromBase64(row.kdf_salt) : null,
-    isAdmin: row.is_admin ?? false,
-    approved: row.approved ?? false,
   }
 }
 
@@ -279,45 +263,207 @@ export async function fetchPublicKey(userId: string): Promise<Uint8Array | null>
   return pk ? fromBase64(pk) : null
 }
 
-export async function fetchOwnGrant(userId: string): Promise<Uint8Array | null> {
+// ── Group vault grants ──────────────────────────────────────────────────────
+
+export interface SealedGrant {
+  groupId: string
+  sealedGroupKey: Uint8Array
+}
+
+export async function fetchAllOwnGrants(userId: string): Promise<SealedGrant[]> {
   const { data, error } = await supabase
     .from('vault_grants')
-    .select('sealed_group_key')
+    .select('group_id, sealed_group_key')
     .eq('user_id', userId)
-    .maybeSingle()
   if (error) throw error
-  const sealed = (data as { sealed_group_key: string } | null)?.sealed_group_key
-  return sealed ? fromBase64(sealed) : null
+  return (data ?? []).map((row) => ({
+    groupId: (row as { group_id: string }).group_id,
+    sealedGroupKey: fromBase64((row as { sealed_group_key: string }).sealed_group_key),
+  }))
 }
 
-export async function vaultExists(): Promise<boolean> {
-  const { data, error } = await supabase.rpc('has_any_vault_grant')
-  if (error) throw error
-  return data === true
+// ── Group membership / management ───────────────────────────────────────────
+
+interface GroupMembershipRow {
+  group_id: string
+  role: GroupRole
+  approved: boolean
+  groups: {
+    name: string
+    invite_code: string
+  } | null
 }
 
-export async function writeGrant(
+export async function listMyGroups(userId: string): Promise<GroupSummary[]> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('group_id, role, approved, groups:group_id(name, invite_code)')
+    .eq('user_id', userId)
+    .eq('approved', true)
+  if (error) throw error
+  return (data ?? []).map((row) => {
+    const r = row as unknown as GroupMembershipRow
+    const groupRow = Array.isArray(r.groups) ? r.groups[0] : r.groups
+    return {
+      id: r.group_id,
+      name: groupRow?.name ?? '',
+      // Only owner/admin can see invite_code via RLS read on groups; for
+      // members, the field comes back blank-but-present so we surface null.
+      inviteCode: r.role === 'owner' || r.role === 'admin' ? (groupRow?.invite_code ?? null) : null,
+      role: r.role,
+      approved: r.approved,
+    } satisfies GroupSummary
+  })
+}
+
+export interface PendingMembership {
+  groupId: string
+  groupName: string
+}
+
+export async function listPendingOwnRequests(userId: string): Promise<PendingMembership[]> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('group_id, groups:group_id(name)')
+    .eq('user_id', userId)
+    .eq('approved', false)
+  if (error) throw error
+  return (data ?? []).map((row) => {
+    const r = row as unknown as { group_id: string; groups: { name: string } | { name: string }[] }
+    const g = Array.isArray(r.groups) ? r.groups[0] : r.groups
+    return { groupId: r.group_id, groupName: g?.name ?? '' }
+  })
+}
+
+export async function createGroup(
+  name: string,
+  inviteCode: string,
+  sealedSelf: Uint8Array,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_group', {
+    p_name: name,
+    p_invite_code: inviteCode,
+    p_sealed_self: toBase64(sealedSelf),
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function joinGroupByCode(
+  code: string,
+): Promise<{ groupId: string; groupName: string }> {
+  const { data, error } = await supabase.rpc('join_group_by_code', { p_code: code })
+  if (error) throw error
+  const rows = (data ?? []) as Array<{ group_id: string; group_name: string }>
+  const row = rows[0]
+  if (!row) throw new Error('Invite code not found')
+  return { groupId: row.group_id, groupName: row.group_name }
+}
+
+export async function listPendingJoinRequests(groupId: string): Promise<PendingGroupRequest[]> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('user_id, created_at, profiles:user_id(display_name)')
+    .eq('group_id', groupId)
+    .eq('approved', false)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []).map((row) => {
+    const r = row as unknown as {
+      user_id: string
+      created_at: string
+      profiles: { display_name: string } | { display_name: string }[] | null
+    }
+    const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
+    return {
+      userId: r.user_id,
+      displayName: p?.display_name ?? 'Unknown',
+      createdAt: r.created_at,
+    } satisfies PendingGroupRequest
+  })
+}
+
+export async function listGroupMembers(groupId: string): Promise<GroupMember[]> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('user_id, role, approved, created_at, profiles:user_id(display_name)')
+    .eq('group_id', groupId)
+    .eq('approved', true)
+  if (error) throw error
+  return (data ?? []).map((row) => {
+    const r = row as unknown as {
+      user_id: string
+      role: GroupRole
+      approved: boolean
+      created_at: string
+      profiles: { display_name: string } | { display_name: string }[] | null
+    }
+    const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
+    return {
+      userId: r.user_id,
+      displayName: p?.display_name ?? 'Unknown',
+      role: r.role,
+      approved: r.approved,
+      createdAt: r.created_at,
+    } satisfies GroupMember
+  })
+}
+
+export async function approveGroupMember(
+  groupId: string,
   userId: string,
-  sealedGroupKey: Uint8Array,
-  grantedBy: string,
+  groupKey: Uint8Array,
 ): Promise<void> {
-  const { error } = await supabase.from('vault_grants').upsert(
-    {
-      user_id: userId,
-      sealed_group_key: toBase64(sealedGroupKey),
-      granted_by: grantedBy,
-    },
-    { onConflict: 'user_id' },
-  )
+  const publicKey = await fetchPublicKey(userId)
+  if (!publicKey) {
+    throw new Error(
+      "This user hasn't finished setting up their account yet — ask them to sign in once, then try approving again.",
+    )
+  }
+  const sealed = await sealGroupKey(groupKey, publicKey)
+  const { error } = await supabase.rpc('approve_group_member', {
+    p_group: groupId,
+    p_user: userId,
+    p_sealed_group_key: toBase64(sealed),
+  })
   if (error) throw error
 }
 
-export async function rejectProfile(profileId: string): Promise<void> {
-  const { error } = await supabase.rpc('reject_user', { target_id: profileId })
+export async function rejectGroupMember(groupId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('reject_group_member', {
+    p_group: groupId,
+    p_user: userId,
+  })
   if (error) throw error
 }
 
-export async function listUnreadPhotos(limit = 50): Promise<PhotoWithMeta[]> {
+export async function promoteGroupAdmin(groupId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('promote_group_admin', {
+    p_group: groupId,
+    p_user: userId,
+  })
+  if (error) throw error
+}
+
+export async function demoteGroupAdmin(groupId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('demote_group_admin', {
+    p_group: groupId,
+    p_user: userId,
+  })
+  if (error) throw error
+}
+
+export async function regenerateInviteCode(groupId: string, newCode: string): Promise<void> {
+  const { error } = await supabase.rpc('regenerate_invite_code', {
+    p_group: groupId,
+    p_new_code: newCode,
+  })
+  if (error) throw error
+}
+
+// ── Photo reads (widget queue) ──────────────────────────────────────────────
+
+export async function listUnreadPhotos(limit = 50): Promise<UnreadPhotoWithMeta[]> {
   const { data, error } = await supabase.rpc('list_unread_photos', { p_limit: limit })
   if (error) throw error
   if (!data) return []
@@ -325,10 +471,12 @@ export async function listUnreadPhotos(limit = 50): Promise<PhotoWithMeta[]> {
   const rows = data as Array<{
     id: string
     sender_id: string
+    group_id: string
     storage_path: string
     hidden: boolean | null
     created_at: string
     sender_name: string | null
+    group_name: string | null
   }>
 
   return Promise.all(
@@ -339,12 +487,14 @@ export async function listUnreadPhotos(limit = 50): Promise<PhotoWithMeta[]> {
       return {
         id: row.id,
         senderId: row.sender_id,
+        groupId: row.group_id,
         storagePath: row.storage_path,
         hidden: row.hidden ?? false,
         createdAt: row.created_at,
         senderName: row.sender_name ?? 'Unknown',
+        groupName: row.group_name ?? '',
         signedUrl: urlData?.signedUrl ?? '',
-      } satisfies PhotoWithMeta
+      } satisfies UnreadPhotoWithMeta
     }),
   )
 }

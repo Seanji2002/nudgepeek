@@ -8,9 +8,11 @@ export const IPC_INVOKE = {
   SUPABASE_CONFIG_GET: 'supabase:config-get',
   SUPABASE_CONFIG_SET: 'supabase:config-set',
   SUPABASE_CONFIG_CLEAR: 'supabase:config-clear',
-  VAULT_GET: 'vault:get',
-  VAULT_SET: 'vault:set',
-  VAULT_CLEAR: 'vault:clear',
+  VAULT_GET_GROUP: 'vault:get-group',
+  VAULT_GET_ALL: 'vault:get-all',
+  VAULT_SET_GROUP: 'vault:set-group',
+  VAULT_CLEAR_GROUP: 'vault:clear-group',
+  VAULT_CLEAR_ALL: 'vault:clear-all',
   UPDATER_DOWNLOAD: 'updater:download',
   UPDATER_INSTALL: 'updater:install',
 } as const
@@ -50,6 +52,8 @@ export interface IncomingPhotoPayload {
   photoBytes: Uint8Array
   senderName: string
   senderUserId: string
+  groupId: string
+  groupName: string
   sentAt: string
   hidden: boolean
   fromCurrentUser: boolean
@@ -59,6 +63,8 @@ export interface DisplayPhotoPayload {
   photoId: string
   photoBytes: Uint8Array
   senderName: string
+  groupId: string
+  groupName: string
   sentAt: string
   hidden: boolean
 }
