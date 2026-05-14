@@ -55,4 +55,10 @@ export function showHistoryWindow(): void {
     historyWindow.show()
     historyWindow.focus()
   }
+  // macOS focus-stealing prevention can leave a freshly-launched packaged
+  // app behind the user's previous foreground app. Force the app itself to
+  // come forward so the window is actually visible on top.
+  if (process.platform === 'darwin') {
+    app.focus({ steal: true })
+  }
 }
