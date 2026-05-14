@@ -20,7 +20,6 @@ import Composer from './Composer.js'
 import GroupPicker from './GroupPicker.js'
 import GroupSelector from './GroupSelector.js'
 import AdminPanel from './AdminPanel.js'
-import UpdatePrompt from './UpdatePrompt.js'
 import styles from './styles.module.css'
 
 const LAST_GROUP_KEY = 'np.lastGroupId'
@@ -521,22 +520,14 @@ export default function HistoryApp({ onSwitchProject }: HistoryAppProps) {
   // ─── Render ───────────────────────────────────────────────────────────
   if (!authChecked) {
     return (
-      <>
-        <UpdatePrompt />
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-        </div>
-      </>
+      <div className={styles.loading}>
+        <div className={styles.spinner} />
+      </div>
     )
   }
 
   if (!user) {
-    return (
-      <>
-        <UpdatePrompt />
-        <Login onSuccess={applySession} onSwitchProject={onSwitchProject} />
-      </>
-    )
+    return <Login onSuccess={applySession} onSwitchProject={onSwitchProject} />
   }
 
   if (myGroups.length === 0) {
@@ -545,19 +536,16 @@ export default function HistoryApp({ onSwitchProject }: HistoryAppProps) {
     // lets the user join with a code; "Create" needs the public key which
     // is in the keypair, so we soft-block that path until next signin.
     return (
-      <>
-        <UpdatePrompt />
-        <GroupPicker
-          userId={user.id}
-          publicKey={keypair?.publicKey ?? new Uint8Array(0)}
-          pendingCount={pendingRequests}
-          onSignOut={handleSignOut}
-          onGroupReady={async (groupId) => {
-            await refreshGroups(user.id)
-            await switchToGroup(groupId)
-          }}
-        />
-      </>
+      <GroupPicker
+        userId={user.id}
+        publicKey={keypair?.publicKey ?? new Uint8Array(0)}
+        pendingCount={pendingRequests}
+        onSignOut={handleSignOut}
+        onGroupReady={async (groupId) => {
+          await refreshGroups(user.id)
+          await switchToGroup(groupId)
+        }}
+      />
     )
   }
 
@@ -566,7 +554,6 @@ export default function HistoryApp({ onSwitchProject }: HistoryAppProps) {
 
   return (
     <div className={styles.app}>
-      <UpdatePrompt />
       <header className={styles.header}>
         <div className={styles.logo}>
           <span className={styles.logoMark}>N</span>

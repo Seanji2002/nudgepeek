@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import HistoryApp from './HistoryApp.js'
 import SupabaseSetup from './SupabaseSetup.js'
+import UpdatePrompt from './UpdatePrompt.js'
 import {
   envSupabaseAnonKey,
   envSupabaseUrl,
@@ -69,37 +70,40 @@ function Bootstrap() {
     setPhase('setup')
   }, [])
 
-  if (phase === 'loading') {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          background: '#0f0f14',
-        }}
-      >
+  // UpdatePrompt is rendered at every phase (loading / setup / ready) so
+  // the modal can surface even before the user has connected to Supabase.
+  return (
+    <>
+      <UpdatePrompt />
+      {phase === 'loading' ? (
         <div
           style={{
-            width: 26,
-            height: 26,
-            borderRadius: '50%',
-            border: '2px solid rgba(124, 106, 247, 0.25)',
-            borderTopColor: '#7c6af7',
-            animation: 'spin 0.75s linear infinite',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            background: '#0f0f14',
           }}
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-      </div>
-    )
-  }
-
-  if (phase === 'setup' || !isSupabaseInitialized()) {
-    return <SupabaseSetup onReady={() => setPhase('ready')} />
-  }
-
-  return <HistoryApp onSwitchProject={handleSwitchProject} />
+        >
+          <div
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              border: '2px solid rgba(124, 106, 247, 0.25)',
+              borderTopColor: '#7c6af7',
+              animation: 'spin 0.75s linear infinite',
+            }}
+          />
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      ) : phase === 'setup' || !isSupabaseInitialized() ? (
+        <SupabaseSetup onReady={() => setPhase('ready')} />
+      ) : (
+        <HistoryApp onSwitchProject={handleSwitchProject} />
+      )}
+    </>
+  )
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
