@@ -43,6 +43,15 @@ mac:
       arch:
         - x64
         - arm64
+    # The zip target is required for `electron-updater` / Squirrel.Mac to
+    # apply auto-updates on macOS — Squirrel swaps the running .app from a
+    # zip, never from the DMG. Without this entry `latest-mac.yml` only
+    # references the DMG and `downloadUpdate()` errors with
+    # "ZIP file not provided".
+    - target: zip
+      arch:
+        - x64
+        - arm64
 
 win:
   icon: resources/icon.png

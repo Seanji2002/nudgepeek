@@ -84,20 +84,28 @@ export default function UpdatePrompt() {
   const handleDismiss = () => setPhase('dismissed')
 
   const handleDownload = async () => {
+    console.log('[update-prompt] handleDownload clicked')
     setPhase('downloading')
     try {
       await window.nudgeHistory.downloadUpdate()
+      console.log('[update-prompt] downloadUpdate() resolved')
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       console.error('[update-prompt] downloadUpdate failed:', err)
-      setPhase('available')
+      setErrorMessage(msg)
+      setPhase('error')
     }
   }
 
   const handleInstall = async () => {
+    console.log('[update-prompt] handleInstall clicked')
     try {
       await window.nudgeHistory.installUpdate()
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       console.error('[update-prompt] installUpdate failed:', err)
+      setErrorMessage(msg)
+      setPhase('error')
     }
   }
 
