@@ -19,21 +19,21 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@eslint/js": "^9",
+    "@eslint/js": "^10",
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^5",
-    "electron": "^42.0.0",
+    "@vitejs/plugin-react": "^6",
+    "electron": "^42.1.0",
     "electron-builder": "^26",
     "electron-vite": "^5",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-plugin-react": "^7",
     "eslint-plugin-react-hooks": "^7",
     "prettier": "^3",
     "typescript": "^6",
     "typescript-eslint": "^8",
-    "vite": "^7"
+    "vite": "^8"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2",
